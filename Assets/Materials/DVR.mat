@@ -146,8 +146,8 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ClipPlaneNormal: {r: 0, g: 0, b: 1, a: 0}
-    - _ClipPlanePoint: {r: 0, g: -1.191, b: -0.747, a: 1}
+    - _ClipPlaneNormal: {r: 0.93710756, g: 0.3490405, b: 0.00000006442664, a: 0}
+    - _ClipPlanePoint: {r: -2.1352654, g: -0.8157677, b: -7.0767245, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _LightDir: {r: 0.08, g: 0, b: 1, a: 0}

@@ -99,7 +99,7 @@ public class HandPinchRotate : MonoBehaviour
 
         // rotation active
         float currentHandAngle = HandAngleAroundObjectXZ(hand);
-        float delta = Mathf.DeltaAngle(startHandAngleY, currentHandAngle);
+        float delta = Mathf.DeltaAngle(currentHandAngle, startHandAngleY);
         float targetY = startObjY + delta * sensitivity;
 
         transform.rotation = Quaternion.Euler(0f, targetY, 0f);

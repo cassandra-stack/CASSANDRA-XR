@@ -8,6 +8,9 @@
 *.vrdf
 *.vrdfw
 
+Cassandra_BurstDebugInformation_DoNotShip/
+cassandra-1.0_BackUpThisFolder_ButDontShipItWithYourGame/
+
 ### Unity ###
 # This .gitignore file should be placed at the root of your Unity project directory
 #

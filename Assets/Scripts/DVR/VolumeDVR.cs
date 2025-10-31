@@ -36,6 +36,10 @@ public class VolumeDVR : MonoBehaviour
     [Tooltip("false = rendu clinique doux (soft LUT)\ntrue = rendu segmentation dure (hard LUT)")]
     public bool useHardTF = false;
 
+    [Header("Runtime paths")]
+    [Tooltip("Si vrai, on va chercher les .vrdf dans persistentDataPath d'abord (cache téléchargeable).")]
+    public bool usePersistentDataFirst = true;
+
     public bool verboseDebug = false;
 
     // runtime GPU data
@@ -75,69 +79,81 @@ public class VolumeDVR : MonoBehaviour
 
     public void LoadVolumeByCode(string code)
     {
-        // Sécurise l'entrée
         if (string.IsNullOrEmpty(code))
         {
             Debug.LogError("[VolumeDVR] Code vide !");
             return;
         }
 
-        // Chemin vers StreamingAssets
-        string dir = Application.streamingAssetsPath;
+        string[] searchRoots;
+        if (usePersistentDataFirst)
+        {
+            searchRoots = new string[] {
+                Application.persistentDataPath,
+                Application.streamingAssetsPath
+            };
+        }
+        else
+        {
+            searchRoots = new string[] {
+                Application.streamingAssetsPath,
+                Application.persistentDataPath
+            };
+        }
 
-        // Recherche de tous les fichiers .vrdf dans ce dossier
-        string[] vrdfFiles = Directory.GetFiles(dir, "*.vrdf", SearchOption.AllDirectories);
-
-        // On garde seulement ceux dont le nom de fichier contient le code (en minuscule)
         string lowerCode = code.ToLowerInvariant();
-        string fileMatch = vrdfFiles.FirstOrDefault(f => Path.GetFileName(f).ToLowerInvariant().Contains(lowerCode));
+        string fileMatch = null;
+
+        foreach (var root in searchRoots)
+        {
+            if (!Directory.Exists(root))
+                continue;
+
+            string[] vrdfFiles = Directory.GetFiles(root, "*.vrdf", SearchOption.AllDirectories);
+            fileMatch = vrdfFiles.FirstOrDefault(f =>
+                Path.GetFileName(f).ToLowerInvariant().Contains(lowerCode)
+            );
+            if (fileMatch != null)
+                break;
+        }
 
         if (fileMatch == null)
         {
-            Debug.LogWarning($"[VolumeDVR] Aucun fichier trouvé contenant '{code}' dans {dir}");
+            Debug.LogWarning($"[VolumeDVR] Aucun fichier trouvé contenant '{code}' ni dans cache ni dans StreamingAssets.");
             return;
         }
 
-        // On affiche pour debug
-        Debug.Log($"[VolumeDVR] Chargement du volume : {Path.GetFileName(fileMatch)}");
+        Debug.Log($"[VolumeDVR] Chargement du volume : {fileMatch}");
 
-        // Sauvegarde le nom
         vrdfFusedFileName = Path.GetFileName(fileMatch);
-
-        // Charge le fichier
-        InternalLoadFused(vrdfFusedFileName);
-
-        // Applique au matériau / recalc infos
+        InternalLoadFused(fileMatch);  // ⬅ on passe le chemin complet maintenant
         ApplyAfterLoad();
     }
 
-private void InternalLoadFused(string fusedFileName)
-{
-    if (string.IsNullOrEmpty(fusedFileName))
+    private void InternalLoadFused(string absolutePath)
     {
-        Debug.LogError("[VolumeDVR] InternalLoadFused: nom vide");
-        return;
+        if (string.IsNullOrEmpty(absolutePath))
+        {
+            Debug.LogError("[VolumeDVR] InternalLoadFused: chemin vide");
+            return;
+        }
+
+        if (!File.Exists(absolutePath))
+        {
+            Debug.LogError($"[VolumeDVR] Fichier non trouvé : {absolutePath}");
+            return;
+        }
+
+        _labelsData = VRDFLoader.LoadFromFile(absolutePath);
+        VRDFLoader.BuildUnityTextures(_labelsData);
+
+        volumeTexLabels  = _labelsData.labelTexture;
+        volumeTexWeights = _labelsData.weightTexture;
+        _weightsData     = null;
+
+        tfTexCurrent = useHardTF ? _labelsData.tfLUTTextureHard
+                                 : _labelsData.tfLUTTextureSoft;
     }
-
-    string fusedPath = Path.Combine(Application.streamingAssetsPath, fusedFileName);
-
-    if (!File.Exists(fusedPath))
-    {
-        Debug.LogError($"[VolumeDVR] Fichier non trouvé : {fusedPath}");
-        return;
-    }
-
-    _labelsData = VRDFLoader.LoadFromFile(fusedPath);
-    VRDFLoader.BuildUnityTextures(_labelsData);
-
-    volumeTexLabels  = _labelsData.labelTexture;
-    volumeTexWeights = _labelsData.weightTexture;
-    _weightsData     = null;
-
-    tfTexCurrent = useHardTF ? _labelsData.tfLUTTextureHard
-                             : _labelsData.tfLUTTextureSoft;
-}
-
 private void ApplyAfterLoad()
 {
     ApplyToMaterial();
