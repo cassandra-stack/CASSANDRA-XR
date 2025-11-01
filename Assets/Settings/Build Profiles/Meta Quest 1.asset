@@ -37,7 +37,7 @@ MonoBehaviour:
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
-    m_path: Assets/_Recovery/0 (3).unity
+    m_path: Assets/Scenes/MainScene.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings:
@@ -187,6 +187,12 @@ MonoBehaviour:
     - line: '|   preloadedAssets:'
     - line: '|   - {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b,
         type: 3}'
+    - line: '|   - {fileID: 1504375442340165410, guid: 3fd7b73bfafe29345a3fd91b10caad10,
+        type: 2}'
+    - line: '|   - {fileID: 11400000, guid: 3fc37bb1d4ca0394397506d9cfdcec53, type:
+        2}'
+    - line: '|   - {fileID: -1798204484369419909, guid: 3bf0345cbd19e344088f3dd9d941a15e,
+        type: 2}'
     - line: '|   metroInputSource: 0'
     - line: '|   wsaTransparentSwapchain: 0'
     - line: '|   m_HolographicPauseOnTrackingLoss: 1'
@@ -225,7 +231,7 @@ MonoBehaviour:
     - line: '|   stripEngineCode: 0'
     - line: '|   iPhoneStrippingLevel: 0'
     - line: '|   iPhoneScriptCallOptimization: 0'
-    - line: '|   ForceInternetPermission: 0'
+    - line: '|   ForceInternetPermission: 1'
     - line: '|   ForceSDCardPermission: 0'
     - line: '|   CreateWallpaper: 0'
     - line: '|   androidSplitApplicationBinary: 0'
@@ -993,7 +999,7 @@ MonoBehaviour:
     - line: '|   hmiLoadingImage: {instanceID: 0}'
     - line: '|   platformRequiresReadableAssets: 0'
     - line: '|   virtualTexturingSupportEnabled: 0'
-    - line: '|   insecureHttpOption: 0'
+    - line: '|   insecureHttpOption: 2'
     - line: '|   androidVulkanDenyFilterList: []'
     - line: '|   androidVulkanAllowFilterList: []'
     - line: '|   androidVulkanDeviceFilterListAsset: {instanceID: 0}'
@@ -1022,7 +1028,7 @@ MonoBehaviour:
         m_ExportAsGoogleAndroidProject: 0
         m_DebugSymbolLevel: 1
         m_DebugSymbolFormat: 5
-        m_CurrentDeploymentTargetId: __builtin__target_default
+        m_CurrentDeploymentTargetId: 2G0YC5ZG4K00VN
         m_BuildType: 2
         m_LinkTimeOptimization: 1
         m_BuildAppBundle: 0

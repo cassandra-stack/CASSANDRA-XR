@@ -9,20 +9,20 @@ using System.Text.RegularExpressions;
 public class GeminiVoiceInterface : MonoBehaviour
 {
     [Header("Google Cloud / Backend URLs")]
-    public string speechToText_URL;
+    public string speechToText_URL = "https://stt-92429070891.europe-west1.run.app/";
     public string gemini_URL;
-    public string textToSpeech_URL;
+    public string textToSpeech_URL = "https://tts-92429070891.europe-west1.run.app/";
 
     [Header("Confidential Mode")]
     public bool confidentialMode = false;
     [Tooltip("Hide patient name, date of birth, and study code/title in UI.")]
-    public bool redactUiIdentity = true;
+    public bool redactUiIdentity = false;
     [Tooltip("Redact PHI from user prompts and model replies shown in chat.")]
-    public bool redactChatContent = true;
+    public bool redactChatContent = false;
     [Tooltip("Skip TTS when confidential mode is ON.")]
-    public bool disableTtsInConfidential = true;
+    public bool disableTtsInConfidential = false;
     [Tooltip("Do not fetch/restore past conversation while confidential.")]
-    public bool skipHistoryInConfidential = true;
+    public bool skipHistoryInConfidential = false;
     [Tooltip("Minimize logs when confidential.")]
     public bool suppressVerboseLogs = true;
 
@@ -67,7 +67,7 @@ public class GeminiVoiceInterface : MonoBehaviour
         if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
 
         if (statusText != null)
-            statusText.text = "Dis le mot-clé ou appuie pour parler";
+            statusText.text = "Say the keyword to speak.";
 
         if (wakeWordListener == null)
         {
@@ -107,7 +107,7 @@ public class GeminiVoiceInterface : MonoBehaviour
 
         if (!geminiClient.HasEndpoint)
         {
-            chatManager?.AddBotMessage("⚠️ Aucune conversation active pour cette étude.");
+            chatManager?.AddBotMessage("No active conversation for this study.");
             if (statusText != null)
                 statusText.text = "No active conversation (WS/Study).";
             return;
@@ -243,6 +243,7 @@ public class GeminiVoiceInterface : MonoBehaviour
     private IEnumerator SendAudioToSTT(byte[] audioData)
     {
         UnityWebRequest request = UnityWebRequest.PostWwwForm(speechToText_URL, "POST");
+        request.certificateHandler = new CertsHandler();
         request.uploadHandler = new UploadHandlerRaw(audioData);
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "audio/wav");
@@ -480,6 +481,7 @@ public class GeminiVoiceInterface : MonoBehaviour
             attempt++;
 
             UnityWebRequest request = new UnityWebRequest(textToSpeech_URL, "POST");
+            request.certificateHandler = new CertsHandler();
             byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
 
@@ -654,6 +656,7 @@ public class GeminiVoiceInterface : MonoBehaviour
         using (var req = UnityWebRequest.Get(getUrl))
         {
             req.downloadHandler = new DownloadHandlerBuffer();
+            req.certificateHandler = new CertsHandler();
             req.SetRequestHeader("Accept", "application/json");
 
             yield return req.SendWebRequest();

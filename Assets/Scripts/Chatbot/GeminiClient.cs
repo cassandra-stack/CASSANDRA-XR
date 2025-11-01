@@ -56,7 +56,8 @@ public class GeminiClient
 
             using (var req = new UnityWebRequest(_continueUrl, UnityWebRequest.kHttpVerbPOST))
             {
-                req.uploadHandler   = new UploadHandlerRaw(Encoding.UTF8.GetBytes(jsonData));
+                req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(jsonData));
+                req.certificateHandler = new CertsHandler();
                 req.downloadHandler = new DownloadHandlerBuffer();
                 req.SetRequestHeader("Content-Type", _contentType);
                 req.SetRequestHeader("Accept", "application/json");

@@ -46,15 +46,16 @@ Shader "Custom/VolumeDVR_URP"
             Tags { "LightMode"="UniversalForward" }
 
             HLSLPROGRAM
-
             #pragma target 3.5
             #pragma vertex vert
             #pragma fragment frag
-
             #pragma multi_compile_instancing
             #pragma multi_compile _ UNITY_SINGLE_PASS_STEREO STEREO_MULTIVIEW_INSTANCING_ON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            #define SAMPLE3D0(tex, sam, uvw) SAMPLE_TEXTURE3D_LOD(tex, sam, uvw, 0)
+            #define SAMPLE2D0(tex, sam, uv ) SAMPLE_TEXTURE2D_LOD(tex, sam, uv , 0)
 
             // ===== TEXTURES / SAMPLERS =====
             TEXTURE3D(_VolumeTexLabels);
@@ -106,7 +107,7 @@ Shader "Custom/VolumeDVR_URP"
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
-                o.positionCS = TransformObjectToHClip(float4(v.positionOS, 1.0));
+                o.positionCS = TransformObjectToHClip(v.positionOS);
                 o.worldPos   = mul(unity_ObjectToWorld, float4(v.positionOS,1)).xyz;
                 return o;
             }
@@ -144,12 +145,12 @@ Shader "Custom/VolumeDVR_URP"
                 float3 uvw_zp = (pObj + float3(0,0,+eps)) + 0.5;
                 float3 uvw_zm = (pObj + float3(0,0,-eps)) + 0.5;
 
-                float vxp = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_xp).r;
-                float vxm = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_xm).r;
-                float vyp = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_yp).r;
-                float vym = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_ym).r;
-                float vzp = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_zp).r;
-                float vzm = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_zm).r;
+                float vxp = SAMPLE3D0(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_xp).r;
+                float vxm = SAMPLE3D0(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_xm).r;
+                float vyp = SAMPLE3D0(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_yp).r;
+                float vym = SAMPLE3D0(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_ym).r;
+                float vzp = SAMPLE3D0(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_zp).r;
+                float vzm = SAMPLE3D0(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_zm).r;
 
                 float3 grad = float3(vxp - vxm, vyp - vym, vzp - vzm);
                 float len2 = max(dot(grad, grad), 1e-6);
@@ -160,15 +161,13 @@ Shader "Custom/VolumeDVR_URP"
             {
                 float idx = round(labelVal);
                 idx = clamp(idx, 0.0, 255.0);
-
                 float u = idx / 255.0;
 
-                float4 tfBase = SAMPLE_TEXTURE2D(_TFTex, sampler_TFTex, float2(u,0.5));
-                float4 ctrl   = SAMPLE_TEXTURE2D(_LabelCtrlTex, sampler_LabelCtrlTex, float2(u,0.5));
+                float4 tfBase = SAMPLE2D0(_TFTex, sampler_TFTex, float2(u,0.5));
+                float4 ctrl   = SAMPLE2D0(_LabelCtrlTex, sampler_LabelCtrlTex, float2(u,0.5));
 
                 float3 rgb = tfBase.rgb * ctrl.rgb;
                 float  a   = tfBase.a   * ctrl.a;
-
                 return float4(rgb, a);
             }
 
@@ -176,9 +175,7 @@ Shader "Custom/VolumeDVR_URP"
             {
                 float normVal = (val - _P1) / max((_P99 - _P1), 1e-6);
                 normVal = saturate(normVal);
-
-                float4 tf = SAMPLE_TEXTURE2D(_TFTex, sampler_TFTex, float2(normVal,0.5));
-                return tf;
+                return SAMPLE2D0(_TFTex, sampler_TFTex, float2(normVal,0.5));
             }
 
             half4 frag (Varyings i) : SV_Target
@@ -230,12 +227,12 @@ Shader "Custom/VolumeDVR_URP"
 
                     float3 uvw = pObj + 0.5;
 
-                    float labelVal = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw).r;
+                    float labelVal = SAMPLE3D0(_VolumeTexLabels, sampler_VolumeTexLabels, uvw).r;
 
                     float weightVal = 1.0;
                     if (_HasWeights == 1)
                     {
-                        weightVal = SAMPLE_TEXTURE3D(_VolumeTexWeights, sampler_VolumeTexWeights, uvw).r;
+                        weightVal = SAMPLE3D0(_VolumeTexWeights, sampler_VolumeTexWeights, uvw).r;
                         weightVal = saturate(weightVal);
                     }
 

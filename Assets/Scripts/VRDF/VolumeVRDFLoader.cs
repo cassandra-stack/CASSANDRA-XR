@@ -238,76 +238,114 @@ public static class VRDFLoader
                 result.volumeData = new float[voxelCount];
                 Buffer.BlockCopy(rawBytes, 0, result.volumeData, 0, expectedBytes);
             }
-
+            Debug.Log($"[VRDF] Meta: {meta.mode}  dim={meta.dim[0]}x{meta.dim[1]}x{meta.dim[2]}  channels={meta.channels}  tf={tf.type}");
             return result;
         }
     }
 
-    // Construction des Textures Unity selon le mode
     public static void BuildUnityTextures(VRDFVolumeData data)
     {
+        
         var dim = data.meta.dim;
-        int dimX = dim[0];
-        int dimY = dim[1];
-        int dimZ = dim[2];
+        int dimX = dim[0], dimY = dim[1], dimZ = dim[2];
+        Debug.Log($"[VRDF] BuildUnityTextures dim={dimX}x{dimY}x{dimZ} mode={data.meta.mode} channels={data.meta.channels}");
 
+    #if UNITY_ANDROID && !UNITY_EDITOR
+        // ====== META QUEST (Android) : R8 pour labels, RHalf pour weights ======
         if (data.meta.mode == "anatomy_label_weighted" && data.meta.channels == 2)
         {
-            // labelTexture = RFloat (contient les labels discrets genre 0,1,2...)
-            Texture3D texLbl = new Texture3D(dimX, dimY, dimZ, TextureFormat.RFloat, false);
+            // Labels discrets (0..255) -> R8 + Point
+            var texLbl = new Texture3D(dimX, dimY, dimZ, TextureFormat.R8, false);
             texLbl.wrapMode   = TextureWrapMode.Clamp;
-            texLbl.filterMode = FilterMode.Point; // nearest, important pour les labels
+            texLbl.filterMode = FilterMode.Point;
+
+            // Convert float label -> byte (0..255)
+            int voxels = data.labelData.Length;
+            var labelsU8 = new byte[voxels];
+            for (int i = 0; i < voxels; i++)
+            {
+                // labels en int, clamp 0..255
+                labelsU8[i] = (byte)Mathf.Clamp(Mathf.RoundToInt(data.labelData[i]), 0, 255);
+            }
+            texLbl.SetPixelData(labelsU8, 0);
+            texLbl.Apply(false, false);
+            data.labelTexture = texLbl;
+
+            // Weights [0..1] -> RHalf + Bilinear
+            var texW = new Texture3D(dimX, dimY, dimZ, TextureFormat.RHalf, false);
+            texW.wrapMode   = TextureWrapMode.Clamp;
+            texW.filterMode = FilterMode.Bilinear;
+
+            var weightsHalf = new ushort[data.weightData.Length];
+            for (int i = 0; i < weightsHalf.Length; i++)
+            {
+                float w = Mathf.Clamp01(data.weightData[i]);
+                weightsHalf[i] = Mathf.FloatToHalf(w);
+            }
+            texW.SetPixelData(weightsHalf, 0);
+            texW.Apply(false, false);
+            data.weightTexture = texW;
+
+            // LUT TF (inchangé)
+            if (data.tf.type == "labelmap") BuildLabelmapLUTs(data);
+            else { data.tfLUTTextureSoft = null; data.tfLUTTextureHard = null; }
+        }
+        else
+        {
+            // Legacy: volume continu -> RHalf (safe mobile) + Bilinear
+            var tex3d = new Texture3D(dimX, dimY, dimZ, TextureFormat.RHalf, false);
+            tex3d.wrapMode   = TextureWrapMode.Clamp;
+            tex3d.filterMode = (data.tf != null && data.tf.type == "labelmap") ? FilterMode.Point : FilterMode.Bilinear;
+
+            // Convert float -> half
+            var halfBuf = new ushort[data.volumeData.Length];
+            for (int i = 0; i < halfBuf.Length; i++)
+                halfBuf[i] = Mathf.FloatToHalf(data.volumeData[i]); // clamp si besoin
+
+            tex3d.SetPixelData(halfBuf, 0);
+            tex3d.Apply(false, false);
+            data.volumeTexture = tex3d;
+
+            if (data.tf.type == "labelmap") BuildLabelmapLUTs(data);
+            else if (data.tf.type == "continuous") data.tfLUTTextureSoft = BuildContinuousLUT(data.tf);
+            else { data.tfLUTTextureSoft = null; data.tfLUTTextureHard = null; }
+        }
+    #else
+        // ====== DESKTOP (Editor/PC) : RFloat inchangé ======
+        if (data.meta.mode == "anatomy_label_weighted" && data.meta.channels == 2)
+        {
+            var texLbl = new Texture3D(dimX, dimY, dimZ, TextureFormat.RFloat, false);
+            texLbl.wrapMode   = TextureWrapMode.Clamp;
+            texLbl.filterMode = FilterMode.Point;
             texLbl.SetPixelData(data.labelData, 0);
             texLbl.Apply(false, false);
             data.labelTexture = texLbl;
 
-            // weightTexture = RFloat [0..1]
-            Texture3D texW = new Texture3D(dimX, dimY, dimZ, TextureFormat.RFloat, false);
+            var texW = new Texture3D(dimX, dimY, dimZ, TextureFormat.RFloat, false);
             texW.wrapMode   = TextureWrapMode.Clamp;
             texW.filterMode = FilterMode.Bilinear;
             texW.SetPixelData(data.weightData, 0);
             texW.Apply(false, false);
             data.weightTexture = texW;
 
-            // LUT pour les labels (comme avant, à partir de tf.entries)
-            if (data.tf.type == "labelmap")
-            {
-                BuildLabelmapLUTs(data);
-            }
-            else
-            {
-                data.tfLUTTextureSoft = null;
-                data.tfLUTTextureHard = null;
-            }
+            if (data.tf.type == "labelmap") BuildLabelmapLUTs(data);
+            else { data.tfLUTTextureSoft = null; data.tfLUTTextureHard = null; }
         }
         else
         {
-            // ancien cas: un seul volumeData -> volumeTexture
-            Texture3D tex3d = new Texture3D(dimX, dimY, dimZ, TextureFormat.RFloat, false);
+            var tex3d = new Texture3D(dimX, dimY, dimZ, TextureFormat.RFloat, false);
             tex3d.wrapMode   = TextureWrapMode.Clamp;
-            tex3d.filterMode = (data.tf != null && data.tf.type == "labelmap")
-                                 ? FilterMode.Point
-                                 : FilterMode.Bilinear;
+            tex3d.filterMode = (data.tf != null && data.tf.type == "labelmap") ? FilterMode.Point : FilterMode.Bilinear;
             tex3d.SetPixelData(data.volumeData, 0);
             tex3d.Apply(false, false);
             data.volumeTexture = tex3d;
 
-            if (data.tf.type == "labelmap")
-            {
-                BuildLabelmapLUTs(data);
-            }
-            else if (data.tf.type == "continuous")
-            {
-                Texture2D lut = BuildContinuousLUT(data.tf);
-                data.tfLUTTextureSoft = lut;
-                data.tfLUTTextureHard = null;
-            }
-            else
-            {
-                data.tfLUTTextureSoft = null;
-                data.tfLUTTextureHard = null;
-            }
+            if (data.tf.type == "labelmap") BuildLabelmapLUTs(data);
+            else if (data.tf.type == "continuous") data.tfLUTTextureSoft = BuildContinuousLUT(data.tf);
+            else { data.tfLUTTextureSoft = null; data.tfLUTTextureHard = null; }
         }
+    #endif
+    
     }
 
     private static Texture2D BuildContinuousLUT(VRDFTransferFunction tf)

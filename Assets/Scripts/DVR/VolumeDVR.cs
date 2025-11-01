@@ -16,7 +16,7 @@ public class VolumeLabelInfoRuntime
 [DisallowMultipleComponent]
 public class VolumeDVR : MonoBehaviour
 {
-        [Header("Input (.vrdf in StreamingAssets)")]
+    [Header("Input (.vrdf in StreamingAssets)")]
     [Tooltip("Fichier fusionné anatomy_label_weighted (*_lw.vrdf). Si renseigné, on ignore les deux champs ci-dessous.")]
     public string vrdfFusedFileName = "scene_lw.vrdf";
 
@@ -42,18 +42,21 @@ public class VolumeDVR : MonoBehaviour
 
     public bool verboseDebug = false;
 
+    [Range(0, 3)] public int debugMode = 0;
+
     // runtime GPU data
-    private Texture3D volumeTexLabels;   // label volume (ou labelTexture)
-    private Texture3D volumeTexWeights;  // weight volume (ou weightTexture)
+    private Texture3D volumeTexLabels;
+    private Texture3D volumeTexWeights;
 
     private Texture2D tfTexCurrent;
     private Texture2D _labelCtrlTex;
-    private Color[]   _labelCtrlPixels;
+    private Color[] _labelCtrlPixels;
+
+    private Material _mat;
 
     [NonSerialized] public List<VolumeLabelInfoRuntime> labelInfos = new List<VolumeLabelInfoRuntime>();
 
-    private VRDFVolumeData _labelsData;   // dans le cas fusionné: ceci contient label+weight
-    private VRDFVolumeData _weightsData;  // ancien mode uniquement
+    private VRDFVolumeData _labelsData;
 
     private static Texture3D _blackTex3D;
     private static Texture3D BlackTex3D
@@ -62,44 +65,77 @@ public class VolumeDVR : MonoBehaviour
         {
             if (_blackTex3D == null)
             {
-                Color black = new Color(0, 0, 0, 0);
+#if UNITY_ANDROID && !UNITY_EDITOR
+                _blackTex3D = new Texture3D(1, 1, 1, TextureFormat.R8, false);
+                _blackTex3D.SetPixelData(new byte[] { 0 }, 0);
+#else
                 _blackTex3D = new Texture3D(1, 1, 1, TextureFormat.RFloat, false);
-                _blackTex3D.SetPixel(0, 0, 0, black);
+                _blackTex3D.SetPixel(0, 0, 0, new Color(0, 0, 0, 0));
+#endif
+                _blackTex3D.wrapMode = TextureWrapMode.Clamp;
+                _blackTex3D.filterMode = FilterMode.Point;
                 _blackTex3D.Apply(false, false);
             }
             return _blackTex3D;
         }
     }
 
-    void Start()
+    void Awake()
     {
-        LoadVolumeByCode(defaultCode);
+        var rend = GetComponent<Renderer>();
+        if (rend == null)
+        {
+            Debug.LogError("[VolumeDVR] Aucun Renderer trouvé sur l’objet.");
+            return;
+        }
+
+        if (volumeMaterial == null)
+            volumeMaterial = rend.sharedMaterial;
+        else
+            rend.sharedMaterial = volumeMaterial;
+
+        SelectShaderForPlatform(volumeMaterial);
+
+        _mat = volumeMaterial;
+    }
+
+    private void SelectShaderForPlatform(Material m)
+    {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        const string questName = "Volume/VolumeDVR_URP_Quest";
+        var sh = Shader.Find(questName);
+        if (sh == null) {
+            Debug.LogError($"[VolumeDVR] Shader introuvable: {questName}. Ajoute-le à 'Always Included Shaders' ou référence-le dans un Material en Resources/");
+            return;
+        }
+        m.shader = sh;
+        Debug.Log($"[VolumeDVR] ✅ Shader Quest appliqué ({questName})");
+#else
+        const string deskName = "Custom/VolumeDVR_URP";
+        var sh = Shader.Find(deskName);
+        if (sh == null)
+        {
+            Debug.LogError($"[VolumeDVR] Shader introuvable: {deskName}. Ajoute-le à 'Always Included Shaders' ou référence-le dans un Material en Resources/");
+            return;
+        }
+        m.shader = sh;
+        Debug.Log($"[VolumeDVR] ✅ Shader desktop appliqué ({deskName})");
+#endif
     }
 
 
     public void LoadVolumeByCode(string code)
     {
-        if (string.IsNullOrEmpty(code))
-        {
-            Debug.LogError("[VolumeDVR] Code vide !");
-            return;
-        }
+        if (string.IsNullOrEmpty(code)) { Debug.LogError("[VolumeDVR] Code vide !"); return; }
 
         string[] searchRoots;
-        if (usePersistentDataFirst)
-        {
-            searchRoots = new string[] {
-                Application.persistentDataPath,
-                Application.streamingAssetsPath
-            };
-        }
-        else
-        {
-            searchRoots = new string[] {
-                Application.streamingAssetsPath,
-                Application.persistentDataPath
-            };
-        }
+#if UNITY_ANDROID && !UNITY_EDITOR
+            searchRoots = new string[] { Application.persistentDataPath };
+#else
+        searchRoots = usePersistentDataFirst
+            ? new string[] { Application.persistentDataPath, Application.streamingAssetsPath }
+            : new string[] { Application.streamingAssetsPath, Application.persistentDataPath };
+#endif
 
         string lowerCode = code.ToLowerInvariant();
         string fileMatch = null;
@@ -147,23 +183,22 @@ public class VolumeDVR : MonoBehaviour
         _labelsData = VRDFLoader.LoadFromFile(absolutePath);
         VRDFLoader.BuildUnityTextures(_labelsData);
 
-        volumeTexLabels  = _labelsData.labelTexture;
+        volumeTexLabels = _labelsData.labelTexture;
         volumeTexWeights = _labelsData.weightTexture;
-        _weightsData     = null;
 
         tfTexCurrent = useHardTF ? _labelsData.tfLUTTextureHard
                                  : _labelsData.tfLUTTextureSoft;
     }
-private void ApplyAfterLoad()
-{
-    ApplyToMaterial();
-    InitLabelCtrlTexture();
-    BuildLabelInfosFromData();
-    FitVolumeScaleFromSpacing(_labelsData);
+    private void ApplyAfterLoad()
+    {
+        ApplyToMaterial();
+        InitLabelCtrlTexture();
+        BuildLabelInfosFromData();
+        FitVolumeScaleFromSpacing(_labelsData);
 
-    if (verboseDebug)
-        Debug.Log($"[VolumeDVR] Volume {vrdfFusedFileName} rechargé et appliqué.");
-}
+        if (verboseDebug)
+            Debug.Log($"[VolumeDVR] Volume {vrdfFusedFileName} rechargé et appliqué.");
+    }
 
     private string DimToString(int[] d)
     {
@@ -206,13 +241,13 @@ private void ApplyAfterLoad()
 
         // P1/P99 : pour continuous, mais dans notre pipeline labelmap_weighted4d
         // on s'en fiche, donc ça restera (0,1)
-        float p1  = 0f;
+        float p1 = 0f;
         float p99 = 1f;
         if (d.tf.type == "continuous"
             && d.meta.intensity_range != null
             && d.meta.intensity_range.Length == 2)
         {
-            p1  = d.meta.intensity_range[0];
+            p1 = d.meta.intensity_range[0];
             p99 = d.meta.intensity_range[1];
         }
 
@@ -221,16 +256,16 @@ private void ApplyAfterLoad()
         Matrix4x4 invAffine = Matrix4x4.identity;
         if (d.meta.affine != null)
         {
-            affine.SetRow(0, new Vector4(d.meta.affine[0,0], d.meta.affine[0,1], d.meta.affine[0,2], d.meta.affine[0,3]));
-            affine.SetRow(1, new Vector4(d.meta.affine[1,0], d.meta.affine[1,1], d.meta.affine[1,2], d.meta.affine[1,3]));
-            affine.SetRow(2, new Vector4(d.meta.affine[2,0], d.meta.affine[2,1], d.meta.affine[2,2], d.meta.affine[2,3]));
-            affine.SetRow(3, new Vector4(d.meta.affine[3,0], d.meta.affine[3,1], d.meta.affine[3,2], d.meta.affine[3,3]));
+            affine.SetRow(0, new Vector4(d.meta.affine[0, 0], d.meta.affine[0, 1], d.meta.affine[0, 2], d.meta.affine[0, 3]));
+            affine.SetRow(1, new Vector4(d.meta.affine[1, 0], d.meta.affine[1, 1], d.meta.affine[1, 2], d.meta.affine[1, 3]));
+            affine.SetRow(2, new Vector4(d.meta.affine[2, 0], d.meta.affine[2, 1], d.meta.affine[2, 2], d.meta.affine[2, 3]));
+            affine.SetRow(3, new Vector4(d.meta.affine[3, 0], d.meta.affine[3, 1], d.meta.affine[3, 2], d.meta.affine[3, 3]));
             invAffine = affine.inverse;
         }
 
         // Sélection de quelles textures envoyer au shader :
-        Texture3D texLbl = volumeTexLabels != null ? volumeTexLabels : (d.labelTexture != null ? d.labelTexture : BlackTex3D);
-        Texture3D texW   = volumeTexWeights != null ? volumeTexWeights : (d.weightTexture != null ? d.weightTexture : null);
+        Texture3D texLbl = volumeTexLabels ?? d.labelTexture ?? BlackTex3D;
+        Texture3D texW = volumeTexWeights ?? d.weightTexture ?? null;
 
         volumeMaterial.SetTexture("_VolumeTexLabels", texLbl ? texLbl : BlackTex3D);
 
@@ -250,25 +285,28 @@ private void ApplyAfterLoad()
         // c'est un labelmap si la TF est de type "labelmap"
         volumeMaterial.SetInt("_IsLabelMap", (d.tf.type == "labelmap") ? 1 : 0);
 
-        volumeMaterial.SetFloat("_P1",  p1);
+        volumeMaterial.SetFloat("_P1", p1);
         volumeMaterial.SetFloat("_P99", p99);
         volumeMaterial.SetVector("_Dim", new Vector4(dimX, dimY, dimZ, 1f));
         volumeMaterial.SetMatrix("_Affine", affine);
         volumeMaterial.SetMatrix("_InvAffine", invAffine);
 
+
         var mr = GetComponent<MeshRenderer>();
         if (mr && mr.sharedMaterial != volumeMaterial)
             mr.sharedMaterial = volumeMaterial;
+
+        Debug.Log($"[VolumeDVR] Material push: labels={(texLbl != null ? texLbl.format.ToString() : "(null)")} weights={(texW != null ? texW.format.ToString() : "(null)")} hasW={volumeMaterial.GetInt("_HasWeights")}");
     }
 
     private void InitLabelCtrlTexture()
     {
         _labelCtrlTex = new Texture2D(256, 1, TextureFormat.RGBAFloat, false);
-        _labelCtrlTex.wrapMode   = TextureWrapMode.Clamp;
+        _labelCtrlTex.wrapMode = TextureWrapMode.Clamp;
         _labelCtrlTex.filterMode = FilterMode.Point;
         _labelCtrlPixels = new Color[256];
         for (int i = 0; i < 256; i++)
-            _labelCtrlPixels[i] = new Color(1f,1f,1f,1f);
+            _labelCtrlPixels[i] = new Color(1f, 1f, 1f, 1f);
         _labelCtrlTex.SetPixels(_labelCtrlPixels);
         _labelCtrlTex.Apply(false);
 
@@ -312,15 +350,16 @@ private void ApplyAfterLoad()
                     float g = (e.color != null && e.color.Length > 1) ? e.color[1] : 1f;
                     float b = (e.color != null && e.color.Length > 2) ? e.color[2] : 1f;
                     float a = e.alpha;
-                    baseCol = new Color(r,g,b,a);
+                    baseCol = new Color(r, g, b, a);
                 }
 
                 bool visibleDefault = baseCol.a > 0.001f;
 
-                var info = new VolumeLabelInfoRuntime {
-                    labelIndex     = lbl,
-                    displayName    = niceName,
-                    color          = baseCol,
+                var info = new VolumeLabelInfoRuntime
+                {
+                    labelIndex = lbl,
+                    displayName = niceName,
+                    color = baseCol,
                     defaultVisible = visibleDefault
                 };
                 labelInfos.Add(info);
@@ -333,10 +372,11 @@ private void ApplyAfterLoad()
                 var c = lutPixels[lbl];
                 bool visibleDefault = c.a > 0.001f;
 
-                labelInfos.Add(new VolumeLabelInfoRuntime {
-                    labelIndex     = lbl,
-                    displayName    = "Label " + lbl,
-                    color          = c,
+                labelInfos.Add(new VolumeLabelInfoRuntime
+                {
+                    labelIndex = lbl,
+                    displayName = "Label " + lbl,
+                    color = c,
                     defaultVisible = visibleDefault
                 });
             }
@@ -344,7 +384,7 @@ private void ApplyAfterLoad()
 
         if (verboseDebug)
         {
-            Debug.Log($"[VolumeDVR] Built labelInfos ({labelInfos.Count}) using {(useHardTF ? "HARD":"SOFT")} LUT");
+            Debug.Log($"[VolumeDVR] Built labelInfos ({labelInfos.Count}) using {(useHardTF ? "HARD" : "SOFT")} LUT");
             foreach (var li in labelInfos)
             {
                 Debug.Log($"  idx={li.labelIndex} name={li.displayName} col={li.color} visDefault={li.defaultVisible}");
@@ -373,7 +413,6 @@ private void ApplyAfterLoad()
         transform.localRotation = Quaternion.Euler(-90, 0, 0);
     }
 
-    //==================== RUNTIME INTERACTION (identique sauf qu'on pousse _LabelCtrlTex déjà fait) ====================
 
     public void SetLabelVisible(int labelIndex, bool visible)
     {
@@ -427,7 +466,7 @@ private void ApplyAfterLoad()
     {
         if (!EnsureCtrlReady()) return;
         for (int i = 0; i < 256; i++)
-            _labelCtrlPixels[i] = new Color(1f,1f,1f,1f);
+            _labelCtrlPixels[i] = new Color(1f, 1f, 1f, 1f);
 
         _labelCtrlTex.SetPixels(_labelCtrlPixels);
         _labelCtrlTex.Apply(false);
@@ -441,5 +480,21 @@ private void ApplyAfterLoad()
             return false;
         }
         return true;
+    }
+
+    private void UpdateDebugKeywords()
+    {
+        if (volumeMaterial == null) return;
+
+        volumeMaterial.DisableKeyword("_DEBUG_MODE_LABELS");
+        volumeMaterial.DisableKeyword("_DEBUG_MODE_WEIGHTS");
+        volumeMaterial.DisableKeyword("_DEBUG_MODE_UVW");
+
+        switch (debugMode)
+        {
+            case 1: volumeMaterial.EnableKeyword("_DEBUG_MODE_LABELS"); break;
+            case 2: volumeMaterial.EnableKeyword("_DEBUG_MODE_WEIGHTS"); break;
+            case 3: volumeMaterial.EnableKeyword("_DEBUG_MODE_UVW"); break;
+        }
     }
 }
