@@ -1,4 +1,4 @@
-# XR Medical Visualization System
+# CASSANDRA XR
 
 ### *Interactive Mixed Reality Platform for Medical Volume Exploration*
 
