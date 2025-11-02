@@ -20,12 +20,11 @@ public class SessionDataController : MonoBehaviour
     public string LastStudyCode { get; private set; }
     public bool LastIsVr { get; private set; }
 
-    // Evénements → consommés par le loader/UI
-    public event Action OnReloadRequested; // WS signale un changement utile => UI peut se préparer
-    public event Action<List<VrdfAsset>, string> OnStudiesReady;  // (assets, defaultCode)
-    public event Action<float, int, int, string> OnDownloadProgress; // (global01, index, total, filename)
-    public event Action<string> OnDownloadCompleted; // defaultCode utilisé pour volumeDVR.LoadVolumeByCode
-    public event Action<string> OnError; // message erreur
+    public event Action OnReloadRequested;
+    public event Action<List<VrdfAsset>, string> OnStudiesReady;
+    public event Action<float, int, int, string> OnDownloadProgress;
+    public event Action<string> OnDownloadCompleted;
+    public event Action<string> OnError;
 
     private string _cachePath;
     private List<VrdfAsset> _vrdfAssets = new List<VrdfAsset>();
@@ -96,7 +95,7 @@ public class SessionDataController : MonoBehaviour
         if (studyState != null) studyState.Clear();
 
         Debug.Log("[SessionDataController] WS change detected → request reload.");
-        OnReloadRequested?.Invoke(); // le Loader décidera quand relancer BeginLoad avec son defaultCode (dropdown)
+        OnReloadRequested?.Invoke();
     }
 
     /// <summary>
@@ -174,7 +173,7 @@ public class SessionDataController : MonoBehaviour
         OnDownloadCompleted?.Invoke(defaultCode);
     }
 
-    private bool _downloadFailed = false; // ajoute en champ privé
+    private bool _downloadFailed = false;
 
 private IEnumerator DownloadAllVrdfWithProgress(List<VrdfAsset> assets)
 {
@@ -189,14 +188,12 @@ private IEnumerator DownloadAllVrdfWithProgress(List<VrdfAsset> assets)
         string fileName = asset.filename;
         string destPath = Path.Combine(_cachePath, fileName);
 
-        // 1) s'assurer que le sous-dossier existe
         string dir = Path.GetDirectoryName(destPath);
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             Directory.CreateDirectory(dir);
 
         if (File.Exists(destPath))
         {
-            // progress “fake” (ok)
             float fakeDuration = 0.4f, t = 0f;
             while (t < fakeDuration)
             {
@@ -217,7 +214,7 @@ private IEnumerator DownloadAllVrdfWithProgress(List<VrdfAsset> assets)
             using (UnityWebRequest www = new UnityWebRequest(asset.downloadUrl, UnityWebRequest.kHttpVerbGET))
             {
                 www.certificateHandler = new CertsHandler();
-                www.downloadHandler    = new DownloadHandlerFile(tempPath); // écrit sur disque
+                www.downloadHandler    = new DownloadHandlerFile(tempPath);
 
                 var op = www.SendWebRequest();
                 while (!op.isDone)
@@ -235,11 +232,10 @@ private IEnumerator DownloadAllVrdfWithProgress(List<VrdfAsset> assets)
                     Debug.LogError(err);
                     OnError?.Invoke(err);
                     _downloadFailed = true;
-                    yield break; // on arrête tout le batch proprement
+                    yield break;
                 }
             }
 
-            // rename atomique → fini
             if (File.Exists(destPath)) File.Delete(destPath);
             File.Move(tempPath, destPath);
             Debug.Log($"[SessionDataController] Saved {fileName} to cache {destPath}");

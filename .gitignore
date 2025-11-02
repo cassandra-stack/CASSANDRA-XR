@@ -6,6 +6,7 @@
 .idea
 
 *.vrdf
+*/_Recovery
 *.vrdfw
 
 Cassandra_BurstDebugInformation_DoNotShip/

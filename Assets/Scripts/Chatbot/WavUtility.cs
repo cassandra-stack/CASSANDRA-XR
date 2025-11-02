@@ -4,7 +4,6 @@ using UnityEngine;
 
 public static class WavUtility
 {
-    // Convertit un AudioClip Unity en wav (byte[]) PCM16 mono little-endian
     public static byte[] FromAudioClip(AudioClip clip)
     {
         if (clip.channels != 1)
@@ -15,7 +14,6 @@ public static class WavUtility
         float[] samples = new float[clip.samples * clip.channels];
         clip.GetData(samples, 0);
 
-        // Si plusieurs canaux, on ne garde que le canal 0
         short[] intData = new short[clip.samples];
         int outIdx = 0;
         for (int i = 0; i < samples.Length; i += clip.channels)

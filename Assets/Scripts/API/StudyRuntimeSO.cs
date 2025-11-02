@@ -169,8 +169,6 @@ public class StudyRuntimeSO : ScriptableObject
 
     private static bool TryParseDate(string s, out DateTime dt)
     {
-        // On tente formats courants : ISO, yyyy-MM-dd, yyyy/MM/dd, dd/MM/yyyy, etc.
-        // N.B. On force un DateTimeKind.Utc pour homogénéité.
         var formats = new[]
         {
             "yyyy-MM-dd","yyyy/MM/dd","dd/MM/yyyy","MM/dd/yyyy",

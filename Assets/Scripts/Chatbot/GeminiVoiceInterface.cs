@@ -81,6 +81,18 @@ public class GeminiVoiceInterface : MonoBehaviour
         geminiClient = new GeminiClient(gemini_URL);
     }
 
+    private void Start()
+    {
+        confidentialMode = false;
+        redactUiIdentity = false;
+        redactChatContent = false;
+        disableTtsInConfidential = false;
+        skipHistoryInConfidential = false;
+        suppressVerboseLogs = false;
+
+        Debug.Log("[GeminiVoiceInterface] Confidential mode forced OFF at startup.");
+    }
+
     private void OnEnable()
     {
         if (voiceAction != null)
@@ -669,28 +681,32 @@ public class GeminiVoiceInterface : MonoBehaviour
 
                 bool hasHistory = resp != null && resp.messages != null && resp.messages.Length > 0;
 
-                if (hasHistory)
+                if (hasHistory && resp.messages.Length <= 3)
+                {
+                    Debug.Log("[GeminiVoiceInterface] Only 3 messages found → skipping history and showing welcome message.");
+                    chatManager?.ClearChat();
+                    PostWelcomeOnce();
+                    if (statusText != null) statusText.text = "New conversation (short history ignored).";
+                }
+                else if (hasHistory)
                 {
                     foreach (var m in resp.messages)
                     {
                         if (m == null || string.IsNullOrWhiteSpace(m.content)) continue;
                         if (m.role == "user") chatManager?.AddUserMessage(m.content);
                         else if (m.role == "assistant") chatManager?.AddBotMessage(m.content);
-                        // ignore "system"
                     }
                     if (statusText != null) statusText.text = "Conversation restored.";
                 }
                 else
                 {
-                    // Pas d’historique → message d’accueil unique
                     PostWelcomeOnce();
                     if (statusText != null) statusText.text = "New conversation.";
                 }
             }
-            else // req.result != Success
+            else
             {
                 Debug.LogError("[GeminiVoiceInterface] GET conversation error: " + req.error);
-                // On affiche quand même l’accueil unique
                 PostWelcomeOnce();
                 if (statusText != null) statusText.text = "New conversation (GET failed).";
             }
@@ -704,7 +720,8 @@ public class GeminiVoiceInterface : MonoBehaviour
         if (_welcomeShown) return;
         _welcomeShown = true;
         chatManager?.AddBotMessage(BuildWelcomeMessage());
-        PostConfidentialBanner();
+        if (confidentialMode)
+            PostConfidentialBanner();
     }
 
     private void PostConfidentialBanner()
@@ -737,7 +754,12 @@ public class GeminiVoiceInterface : MonoBehaviour
             (fullName, dob) = RedactPatientIdentity(fullName, dob);
         }
 
-        string dobText = !string.IsNullOrWhiteSpace(dob) ? $" (born {dob})" : "";
+        string dobText = "";
+        if (!string.IsNullOrWhiteSpace(dob))
+        {
+            if (DateTime.TryParse(dob, out var dt))
+                dobText = $" (born {dt:yyyy-MM-dd})";
+        }
 
         return
             $"Hello, I'm Cassandra, your clinical analysis assistant.\n" +

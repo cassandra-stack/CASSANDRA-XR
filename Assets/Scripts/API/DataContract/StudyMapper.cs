@@ -48,7 +48,6 @@ public static class StudyMapper
 
     private static string ExtractModality(AssetRaw asset)
     {
-        // priorité: asset_type ("t1c_vrdf" -> "t1c")
         if (!string.IsNullOrEmpty(asset.asset_type))
         {
             var idx = asset.asset_type.IndexOf("_vrdf", StringComparison.OrdinalIgnoreCase);
@@ -56,17 +55,14 @@ public static class StudyMapper
                 return asset.asset_type.Substring(0, idx);
         }
 
-        // fallback: filename "...-t1c_lw.vrdf" -> "t1c"
         if (!string.IsNullOrEmpty(asset.filename))
         {
-            // on regarde le morceau avant "_lw.vrdf"
-            // et on prend ce qu'il y a après le dernier "-"
             var parts = asset.filename.Split('-');
-            var lastPart = parts[parts.Length - 1]; // ex "t1c_lw.vrdf"
+            var lastPart = parts[parts.Length - 1];
             var underscoreIdx = lastPart.IndexOf("_");
             if (underscoreIdx > 0)
             {
-                return lastPart.Substring(0, underscoreIdx); // "t1c"
+                return lastPart.Substring(0, underscoreIdx);
             }
         }
 

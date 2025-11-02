@@ -11,14 +11,12 @@ public static class SAFile
                          .Replace("\\", "/");
         string dst = Path.Combine(Application.persistentDataPath, relativePath);
 
-        // déjà copié ?
         if (File.Exists(dst))
         {
             onReadyPath?.Invoke(dst);
             yield break;
         }
 
-        // crée le dossier de destination
         Directory.CreateDirectory(Path.GetDirectoryName(dst));
 
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -30,7 +28,6 @@ public static class SAFile
             File.WriteAllBytes(dst, req.downloadHandler.data);
         }
 #else
-        // Sur éditeur/desktop, StreamingAssets est lisible directement
         File.Copy(src, dst, true);
 #endif
         onReadyPath?.Invoke(dst);

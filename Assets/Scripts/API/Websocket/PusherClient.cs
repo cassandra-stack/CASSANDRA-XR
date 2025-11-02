@@ -19,22 +19,18 @@ public class PusherClient : MonoBehaviour
     private float _nextReconnectAllowedTime = 0f;
     private int _connectAttempts = 0;
 
-    // ces deux là ne DOIVENT être écrits que dans Update()
     private float lastServerActivityTime = 0f;
     private float activityTimeoutSeconds = 30f;
 
-    // flags thread-safe depuis le thread réseau
     private volatile bool _heartbeatPending = false;
     private volatile bool _connectionOpenedPending = false;
     private volatile bool _connectionClosedPending = false;
 
-    // queue thread-safe d'événements métier
     private readonly Queue<VrStatusPayload> _pendingVrEvents = new Queue<VrStatusPayload>();
     private readonly object _lockQueue = new object();
 
     private const bool VERBOSE_LOG = true;
 
-    // === EVENT PUBLIC exposé à Unity ===
     public event Action<VrStatusPayload> OnVrStatusChanged;
 
     [Serializable]
@@ -117,7 +113,6 @@ public class PusherClient : MonoBehaviour
 
     private void Update()
     {
-        // Consommer les heartbeats / open
         if (_heartbeatPending || _connectionOpenedPending)
         {
             lastServerActivityTime = Time.realtimeSinceStartup;
@@ -125,17 +120,13 @@ public class PusherClient : MonoBehaviour
             _connectionOpenedPending = false;
         }
 
-        // Consommer le flag "closed"
         if (_connectionClosedPending)
         {
             _connectionClosedPending = false;
-            // socket déjà nullifié dans SafeOnClose()
         }
 
-        // Dispatcher les payloads vr.status.changed sur le thread Unity
         DispatchPendingVrEventsOnMainThread();
 
-        // Maintenance/reconnexion (cooldown)
         MaintainConnection();
     }
 
@@ -271,7 +262,6 @@ public class PusherClient : MonoBehaviour
 
             string raw = e.Data;
 
-            // ping/pong
             if (raw.Contains("\"event\":\"pusher:ping\""))
             {
                 SendFrame(new OutgoingFrame { Event = "pusher:pong" });
@@ -279,7 +269,6 @@ public class PusherClient : MonoBehaviour
                 return;
             }
 
-            // éviter de parser du JSON pour rien
             if (!(raw.Contains("pusher:connection_established")
                || raw.Contains("pusher_internal:subscription_succeeded")
                || raw.Contains("vr.status.changed")
@@ -352,7 +341,6 @@ public class PusherClient : MonoBehaviour
             Debug.Log("[WS] Established. timeout=" + activityTimeoutSeconds + "s");
         }
 
-        // subscribe au channel
         Subscribe(channelName);
     }
 
@@ -384,7 +372,6 @@ public class PusherClient : MonoBehaviour
     {
         var sub = new
         {
-            // pusher:subscribe est le message valide
             @event = "pusher:subscribe",
             data = new { channel = channel }
         };

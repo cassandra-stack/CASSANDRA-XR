@@ -10,11 +10,9 @@ using Pv.Unity; // PorcupineManager
 public class PorcupineWakeWordListener : MonoBehaviour
 {
     [Header("Picovoice / Porcupine")]
-    [SerializeField] private string accessKey = "ndia7zusUmtQe/m9qRri6u4lemMKpB1vDM4fntsstWnCknY6aL/Dwg==";
+    [SerializeField] private string accessKey = "Mrc8zIAXZpbu7O/FiiaNCsQgtn1S+Mu8c46WkLzr3Xy2je3UnzAM9Q==";
 
     [Header("Fichiers (dans StreamingAssets)")]
-    // Chemins RELATIFS depuis StreamingAssets
-    // Ex: Porcupine/keywords/cassandra_fr_android_v3_0_0.ppn
     [SerializeField] private string keywordPathAndroid = "Porcupine/keywords/cassandra_fr_android_v3_0_0.ppn";
     [SerializeField] private string keywordPathWindows = "Porcupine/keywords/cassandra_fr_windows_v3_0_0.ppn";
     [SerializeField] private string modelPath = "Porcupine/models/porcupine_params_fr.pv";
@@ -42,7 +40,6 @@ public class PorcupineWakeWordListener : MonoBehaviour
     private IEnumerator InitRoutine()
     {
 #if UNITY_ANDROID && !UNITY_EDITOR
-        // Permission micro
         if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Microphone))
         {
             UnityEngine.Android.Permission.RequestUserPermission(UnityEngine.Android.Permission.Microphone);
@@ -61,7 +58,6 @@ public class PorcupineWakeWordListener : MonoBehaviour
         string absKeyword = null;
         string absModel = null;
 
-        // Sur Android : copier StreamingAssets -> persistentDataPath (Porcupine exige un vrai fichier)
         yield return CopyFromStreamingAssets(relKeyword, p => absKeyword = p);
         yield return CopyFromStreamingAssets(relModel,    p => absModel   = p);
 

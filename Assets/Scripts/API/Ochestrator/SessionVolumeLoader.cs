@@ -7,9 +7,9 @@ using TMPro;
 public class SessionVolumeLoader : MonoBehaviour
 {
     [Header("Scene References (UI & Volume)")]
-    public Dropdown dropdown;               // Source de la modalité (ex: "mri", "ct", ...)
-    public VolumeDVR volumeDVR;             // Composant qui charge/affiche le volume
-    public SessionDataController dataCtrl;  // NOUVEAU: référence au contrôleur API
+    public Dropdown dropdown;
+    public VolumeDVR volumeDVR;
+    public SessionDataController dataCtrl;
 
     [Header("Progress UI")]
     public ModernProgressBar progressBar;
@@ -40,7 +40,6 @@ public class SessionVolumeLoader : MonoBehaviour
 
     private void Reset()
     {
-        // Valeurs par défaut en cas d'ajout du composant
         startScaleFactor = 0.02f;
         revealDuration = 0.8f;
     }
@@ -82,12 +81,10 @@ public class SessionVolumeLoader : MonoBehaviour
             return;
         }
 
-        // UI init
         if (progressLabelTMP != null)
             progressLabelTMP.text = "Initialisation du volume...\nPréparation de la session XR";
         if (progressPanelRoot) progressPanelRoot.SetActive(true);
 
-        // état visuel initial
         _targetParentScale = volumeDVRParent.localScale;
         if (brainPlaceholder) brainPlaceholder.SetActive(true);
         if (volumeDVRObject) volumeDVRObject.SetActive(true);
@@ -95,7 +92,6 @@ public class SessionVolumeLoader : MonoBehaviour
         volumeDVRParent.localScale = _targetParentScale * startScaleFactor;
         ForceRendererAlpha(volumeDVRObject, 0f);
 
-        // Lancer le pipeline de données via le contrôleur
         dataCtrl.BeginLoad(GetDefaultCode());
     }
 
@@ -105,22 +101,17 @@ public class SessionVolumeLoader : MonoBehaviour
 
     private void HandleReloadRequestedByWs()
     {
-        // Préparer l’UI/visuels avant de relancer un chargement
         PrepareVisualsForReload();
 
-        // Relance le pipeline (le "defaultCode" vient du dropdown actuel)
         dataCtrl.BeginLoad(GetDefaultCode());
     }
 
     private void HandleStudiesReady(List<VrdfAsset> assets, string defaultCode)
     {
-        // On a la liste des assets → laisser la barre afficher "Récupération..." via progress
-        // (Rien de spécifique ici, mais c’est le bon hook si tu veux réagir à la méta)
     }
 
     private void HandleDownloadProgress(float global01, int index, int total, string currentFile)
     {
-        // Mettre à jour l’UI de progression
         if (progressBar != null)
             progressBar.SetProgress(global01, currentFile, index, total);
 
@@ -130,7 +121,6 @@ public class SessionVolumeLoader : MonoBehaviour
 
     private void HandleDownloadCompleted(string defaultCode)
     {
-        // Tous les fichiers sont dispo → charger le volume
         volumeDVR.LoadVolumeByCode(defaultCode);
 
         if (progressLabelTMP != null)
@@ -138,7 +128,6 @@ public class SessionVolumeLoader : MonoBehaviour
 
         if (progressPanelRoot) progressPanelRoot.SetActive(false);
 
-        // Apparition du vrai volume
         if (_appearRoutine != null) StopCoroutine(_appearRoutine);
         _appearRoutine = StartCoroutine(CrossfadeBrainToVolume(revealDuration));
 
@@ -170,10 +159,8 @@ public class SessionVolumeLoader : MonoBehaviour
 
         if (brainPlaceholder) brainPlaceholder.SetActive(true);
 
-        // rendre le vrai volume invisible le temps du rechargement
         ForceRendererAlpha(volumeDVRObject, 0f);
 
-        // remet l’échelle minuscule pour rejouer l’apparition
         volumeDVRParent.localScale = _targetParentScale * startScaleFactor;
     }
 
@@ -217,7 +204,6 @@ public class SessionVolumeLoader : MonoBehaviour
             float alphaOut = 1f - ease;
             float alphaIn  = ease;
 
-            // fade out du placeholder
             foreach (var r in placeholderRenderers)
             {
                 if (r != null && r.material != null && r.material.HasProperty("_Color"))
@@ -228,7 +214,6 @@ public class SessionVolumeLoader : MonoBehaviour
                 }
             }
 
-            // fade in du vrai volume
             foreach (var r in dvrRenderers)
             {
                 if (r != null && r.material != null && r.material.HasProperty("_Color"))

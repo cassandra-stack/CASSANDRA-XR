@@ -86,10 +86,8 @@ public class HandPinchRotate : MonoBehaviour
             return;
         }
 
-        // si c'est pas la main qui a le lock -> ignore
         if (hand.handedness != grabbingHandedness) return;
 
-        // si on a relâché le pinch -> stop rotate
         if (!pinching && pinchDist > (pinchDistanceThreshold + releaseHysteresis))
         {
             hasGrabbingHand = false;
@@ -97,7 +95,6 @@ public class HandPinchRotate : MonoBehaviour
             return;
         }
 
-        // rotation active
         float currentHandAngle = HandAngleAroundObjectXZ(hand);
         float delta = Mathf.DeltaAngle(currentHandAngle, startHandAngleY);
         float targetY = startObjY + delta * sensitivity;

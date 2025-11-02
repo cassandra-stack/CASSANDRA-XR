@@ -1,5 +1,8 @@
 using UnityEngine.Networking;
+using UnityEngine.Scripting;
 
-class CertsHandler : CertificateHandler {
-    protected override bool ValidateCertificate(byte[] certData) => true; // Bypass cert
+[Preserve]
+class CertsHandler : CertificateHandler
+{
+    [Preserve] protected override bool ValidateCertificate(byte[] certData) => true;
 }

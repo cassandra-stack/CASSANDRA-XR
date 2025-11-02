@@ -9,14 +9,14 @@ using System.Threading.Tasks;
 public class ChatManager : MonoBehaviour
 {
     [Header("Prefabs & Layout")]
-    public GameObject userBubblePrefab; // bulle BLEUE
-    public GameObject botBubblePrefab;  // bulle BLANCHE
+    public GameObject userBubblePrefab;
+    public GameObject botBubblePrefab;
     public Transform chatContainer;
     public ScrollRect chatScrollRect;
 
     [Header("Typing Bubble Texts")]
     [Tooltip("Texte de base pour l'utilisateur pendant STT (ex: vide => juste '...')")]
-    public string userTypingBaseText = ""; // après enregistrement, STT en cours
+    public string userTypingBaseText = "";
     [Tooltip("Texte de base pour Cassandra pendant génération")]
     public string botTypingBaseText = "Cassandra est en train d'écrire";
     [Tooltip("Texte de base pendant l'écoute micro EN DIRECT")]
@@ -35,22 +35,19 @@ public class ChatManager : MonoBehaviour
     private InputAction sendUserTestAction;
     private InputAction sendBotTestAction;
 
-    // historique final propre
     public class ChatEntry
     {
-        public string role; // "user" | "assistant"
+        public string role;
         public string text;
     }
     private readonly List<ChatEntry> history = new List<ChatEntry>();
 
-    // bulles temporaires
-    private GameObject listeningBubble;      // "🎤 Listening ..."
-    private GameObject pendingUserBubble;    // user STT "..."
-    private GameObject pendingBotBubble;     // bot typing "Cassandra ..."
+    private GameObject listeningBubble;
+    private GameObject pendingUserBubble;
+    private GameObject pendingBotBubble;
 
     private void Awake()
     {
-        // debug pour tester vite
         sendUserTestAction = new InputAction(
             name: "SendUserMsg",
             type: InputActionType.Button,
@@ -58,7 +55,6 @@ public class ChatManager : MonoBehaviour
         );
         sendUserTestAction.performed += _ =>
         {
-            // simulate pipeline:
             CreateListeningBubble();
             StartCoroutine(FakeAfterDelay(1.0f, () =>
             {
@@ -112,10 +108,8 @@ public class ChatManager : MonoBehaviour
     // PUBLIC: bulles "Listening"
     // -------------------------
 
-    // Appelée quand l'enregistrement micro commence
     public void CreateListeningBubble()
     {
-        // On détruit l’ancienne si elle traîne
         if (listeningBubble != null)
         {
             Destroy(listeningBubble);
@@ -124,11 +118,10 @@ public class ChatManager : MonoBehaviour
 
         listeningBubble = SpawnTypingBubble(
             isUser: true,
-            baseText: listeningBaseText // "🎤 Listening"
+            baseText: listeningBaseText
         );
     }
 
-    // Appelée quand on arrête l'enregistrement micro (avant STT)
     public void RemoveListeningBubble()
     {
         if (listeningBubble != null)
@@ -145,7 +138,6 @@ public class ChatManager : MonoBehaviour
 
     public void CreateUserTypingBubble()
     {
-        // On enlève une éventuelle bulle STT précédente
         if (pendingUserBubble != null)
         {
             Destroy(pendingUserBubble);
@@ -154,7 +146,7 @@ public class ChatManager : MonoBehaviour
 
         pendingUserBubble = SpawnTypingBubble(
             isUser: true,
-            baseText: userTypingBaseText // généralement "" pour afficher juste "..."
+            baseText: userTypingBaseText
         );
     }
 
@@ -174,7 +166,6 @@ public class ChatManager : MonoBehaviour
         }
         else
         {
-            // fallback si pas de bulle STT (ex: STT direct)
             AddUserMessage(finalText);
         }
 
@@ -195,7 +186,7 @@ public class ChatManager : MonoBehaviour
 
         pendingBotBubble = SpawnTypingBubble(
             isUser: false,
-            baseText: botTypingBaseText // "Cassandra est en train d'écrire"
+            baseText: botTypingBaseText
         );
     }
 
@@ -227,7 +218,6 @@ public class ChatManager : MonoBehaviour
 
     public void AddUserMessage(string text)
     {
-        // crée une bulle BLEUE finale sans anim
         SpawnFinalBubble(text, isUser: true);
 
         history.Add(new ChatEntry
@@ -239,7 +229,6 @@ public class ChatManager : MonoBehaviour
 
     public void AddBotMessage(string text)
     {
-        // crée une bulle BLANCHE finale sans anim
         SpawnFinalBubble(text, isUser: false);
 
         history.Add(new ChatEntry
@@ -263,11 +252,9 @@ public class ChatManager : MonoBehaviour
         var tmp = bubble.GetComponentInChildren<TextMeshProUGUI>();
         if (tmp != null)
         {
-            // set text de base (sans points dynamiques)
             tmp.text = baseText;
         }
 
-        // brancher l'animateur "..."
         var animator = bubble.AddComponent<TypingBubbleAnimator>();
         animator.baseText = baseText;
         animator.stepDuration = typingStepDuration;

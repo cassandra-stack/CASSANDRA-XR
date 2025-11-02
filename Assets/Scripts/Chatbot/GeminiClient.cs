@@ -9,7 +9,6 @@ public class GeminiClient
     private string _continueUrl;
     private readonly string _contentType;
 
-    // Retry policy (truncated exponential backoff + jitter)
     private const int    MaxAttempts             = 4;
     private const float  InitialBackoffSec       = 2.0f;
     private const float  MaxBackoffSec           = 10.0f;
@@ -78,10 +77,8 @@ public class GeminiClient
 
                 bool retryable = ShouldRetry(status, req.error);
 
-                // Limite spéciale pour 500: max 2 tentatives
                 int allowedMaxAttempts = (status == 500) ? Mathf.Min(MaxAttempts, MaxAttemptsForHttp500) : MaxAttempts;
 
-                // Si non-retryable → échec immédiat
                 if (!retryable)
                 {
                     var debug = BuildErrorMessage(status, req.error, req.downloadHandler?.text);
@@ -89,7 +86,6 @@ public class GeminiClient
                     yield break;
                 }
 
-                // Vérifie limites temps / tentatives
                 float elapsed = Time.realtimeSinceStartup - startTs;
                 if (attempt >= allowedMaxAttempts || elapsed >= MaxTotalRetryTimeSec)
                 {
@@ -99,7 +95,6 @@ public class GeminiClient
                     yield break;
                 }
 
-                // Respecte Retry-After si présent
                 float delaySec = ComputeDelayFromRetryAfter(req.GetResponseHeader("Retry-After"));
                 if (delaySec <= 0f)
                 {
@@ -108,13 +103,10 @@ public class GeminiClient
                     delaySec *= jitter;
                 }
 
-                // Log propre
                 Debug.LogWarning($"[GeminiClient] HTTP {status} -> retry {attempt}/{allowedMaxAttempts} in {delaySec:0.00}s");
 
-                // Attente temps réel
                 yield return new WaitForSecondsRealtime(delaySec);
 
-                // Prépare le backoff
                 backoff = Mathf.Min(backoff * 2f, MaxBackoffSec);
             }
         }
@@ -122,12 +114,9 @@ public class GeminiClient
 
     private static bool ShouldRetry(int status, string transportError)
     {
-        // 429 + 5xx -> retry
         if (status == 429) return true;
         if (status >= 500 && status <= 599) return true;
 
-        // Erreurs transport Unity (connexions perdues, timeouts) -> retry
-        // UnityWebRequest n’expose pas des codes typés, on check le message
         if (!string.IsNullOrEmpty(transportError))
         {
             string e = transportError.ToLowerInvariant();
@@ -137,7 +126,6 @@ public class GeminiClient
                 return true;
         }
 
-        // 4xx hors 429: généralement erreurs client -> pas de retry
         return false;
     }
 

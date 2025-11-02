@@ -832,7 +832,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4525d8c9316e7264a9da1b7fc5cd76f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  grab: {fileID: 0}
+  grab: {fileID: 2110689248}
   pageDisplay: {fileID: 433862286}
   swipePlane: {fileID: 433862285}
   swipeThreshold: 0.12
@@ -1042,7 +1042,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7dc2f92c22309484db1e92a86718c580, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  ray: {fileID: 0}
+  ray: {fileID: 2028152799}
   pinchValue:
     m_UseReference: 1
     m_Action:
@@ -6519,7 +6519,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!23 &1790230900
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -7276,7 +7276,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1938695363
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7289,7 +7289,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 27d998be30a5eb24da94a84226975937, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  accessKey: ndia7zusUmtQe/m9qRri6u4lemMKpB1vDM4fntsstWnCknY6aL/Dwg==
+  accessKey: Mrc8zIAXZpbu7O/FiiaNCsQgtn1S+Mu8c46WkLzr3Xy2je3UnzAM9Q==
   keywordPathAndroid: Porcupine/keywords/cassandra_fr_android_v3_0_0.ppn
   keywordPathWindows: Porcupine/keywords/cassandra_fr_windows_v3_0_0.ppn
   modelPath: Porcupine/models/porcupine_params_fr.pv
@@ -7627,6 +7627,17 @@ Transform:
   - {fileID: 2057973523}
   m_Father: {fileID: 751997794}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2028152799 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2945826935290517874, guid: d6878e1999eb4b44a9f5a263af86c185, type: 3}
+  m_PrefabInstance: {fileID: 1545113574}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6803edce0201f574f923fd9d10e5b30a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &2052870465
 GameObject:
   m_ObjectHideFlags: 0

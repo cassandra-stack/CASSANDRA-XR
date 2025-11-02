@@ -25,7 +25,7 @@ public class PatientInfo {
 
 [Serializable]
 public class VrdfAsset {
-    public string filename;     // ex: "BraTS-GLI-00014-000-t1c_lw.vrdf"
-    public string modality;     // ex: "t1c"
-    public string downloadUrl;  // ex: "https://holonauts.fr/private-storage/..."
+    public string filename;
+    public string modality;
+    public string downloadUrl;
 }

@@ -44,7 +44,6 @@ public class VolumeDVR : MonoBehaviour
 
     [Range(0, 3)] public int debugMode = 0;
 
-    // runtime GPU data
     private Texture3D volumeTexLabels;
     private Texture3D volumeTexWeights;
 
@@ -162,7 +161,7 @@ public class VolumeDVR : MonoBehaviour
         Debug.Log($"[VolumeDVR] Chargement du volume : {fileMatch}");
 
         vrdfFusedFileName = Path.GetFileName(fileMatch);
-        InternalLoadFused(fileMatch);  // ⬅ on passe le chemin complet maintenant
+        InternalLoadFused(fileMatch);
         ApplyAfterLoad();
     }
 
@@ -239,8 +238,7 @@ public class VolumeDVR : MonoBehaviour
         int dimY = d.meta.dim[1];
         int dimZ = d.meta.dim[2];
 
-        // P1/P99 : pour continuous, mais dans notre pipeline labelmap_weighted4d
-        // on s'en fiche, donc ça restera (0,1)
+
         float p1 = 0f;
         float p99 = 1f;
         if (d.tf.type == "continuous"
@@ -251,7 +249,6 @@ public class VolumeDVR : MonoBehaviour
             p99 = d.meta.intensity_range[1];
         }
 
-        // matrices
         Matrix4x4 affine = Matrix4x4.identity;
         Matrix4x4 invAffine = Matrix4x4.identity;
         if (d.meta.affine != null)
@@ -263,7 +260,6 @@ public class VolumeDVR : MonoBehaviour
             invAffine = affine.inverse;
         }
 
-        // Sélection de quelles textures envoyer au shader :
         Texture3D texLbl = volumeTexLabels ?? d.labelTexture ?? BlackTex3D;
         Texture3D texW = volumeTexWeights ?? d.weightTexture ?? null;
 
@@ -282,7 +278,6 @@ public class VolumeDVR : MonoBehaviour
 
         volumeMaterial.SetTexture("_TFTex", tfTexCurrent != null ? tfTexCurrent : Texture2D.blackTexture);
 
-        // c'est un labelmap si la TF est de type "labelmap"
         volumeMaterial.SetInt("_IsLabelMap", (d.tf.type == "labelmap") ? 1 : 0);
 
         volumeMaterial.SetFloat("_P1", p1);
