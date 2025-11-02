@@ -9,7 +9,7 @@ Explore the *CASSANDRA XR* system in action through these short demo videos:
 
 | Demo | Description | Link |
 |------|--------------|------|
-| **Study-Session Demo** | Real-time study loading and medical data visualization in XR. | [▶️ Watch](https://www.youtube.com/shorts/4tPXXXXXXXX) |
+| **Study-Session Demo** | Real-time study loading and medical data visualization in XR. | [▶️ Watch](https://www.youtube.com/shorts/4tP0xRyO_74) |
 | **Medical Assistant Demo** | Interaction with the AI-driven assistant in mixed reality. | [▶️ Watch](https://www.youtube.com/shorts/EcIkscZZDR4) |
 | **Brain Visualization Demo** | Volumetric rendering and manipulation of 3D brain scans. | [▶️ Watch](https://www.youtube.com/shorts/A57vztt2YsE) |
 
