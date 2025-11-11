@@ -61,6 +61,9 @@ public class GeminiVoiceInterface : MonoBehaviour
 
     private bool _conversationLoading = false;
     private bool _welcomeShown = false;
+    
+    private string _currentGeminiRequestId;
+    private string _currentTTSRequestId;
 
     private void Awake()
     {
@@ -211,72 +214,244 @@ public class GeminiVoiceInterface : MonoBehaviour
 
     private void StartRecording()
     {
-        if (Microphone.devices.Length == 0)
+        try
         {
-            Debug.LogError("[GeminiVoiceInterface] Aucun micro détecté !");
-            return;
+            if (Microphone.devices.Length == 0)
+            {
+                Debug.LogError("[GeminiVoiceInterface] No microphone detected!");
+                if (statusText != null) statusText.text = "No microphone found. Please connect a microphone.";
+                return;
+            }
+
+            // Cancel any ongoing operations before starting new recording
+            if (_geminiInFlight || isSpeaking)
+            {
+                Debug.Log("[GeminiVoiceInterface] Cancelling ongoing operations before new recording");
+                CancelAllOperations();
+            }
+
+            wakeWordListener?.PauseListening();
+
+            silenceTimer = 0f;
+            isRecording = true;
+            OnStartListening?.Invoke();
+
+            chatManager?.CreateListeningBubble();
+            if (statusText != null) statusText.text = "I'm listening... (auto-stop on silence)";
+
+            Debug.Log("[GeminiVoiceInterface] StartRecording()");
+            recording = Microphone.Start(null, false, RECORD_DURATION, SAMPLE_RATE);
         }
-
-        wakeWordListener?.PauseListening();
-
-        silenceTimer = 0f;
-        isRecording = true;
-        OnStartListening?.Invoke();
-
-        chatManager?.CreateListeningBubble();
-        if (statusText != null) statusText.text = "I'm listening... (auto-stop on silence)";
-
-        Debug.Log("[GeminiVoiceInterface] StartRecording()");
-        recording = Microphone.Start(null, false, RECORD_DURATION, SAMPLE_RATE);
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[GeminiVoiceInterface] Exception in StartRecording: {ex.Message}");
+            if (statusText != null) statusText.text = "Microphone error. Please try again.";
+            isRecording = false;
+            wakeWordListener?.ResumeListening();
+        }
     }
 
     private void StopAndProcessRecording()
     {
         if (!isRecording) return;
 
-        isRecording = false;
-        OnStopListening?.Invoke();
-        Microphone.End(null);
-        silenceTimer = 0f;
+        try
+        {
+            isRecording = false;
+            OnStopListening?.Invoke();
+            Microphone.End(null);
+            silenceTimer = 0f;
 
-        if (statusText != null)
-            statusText.text = "Transcription en cours...";
+            if (statusText != null)
+                statusText.text = "Transcription en cours...";
 
-        Debug.Log("[GeminiVoiceInterface] ⏹ StopRecording() -> STT");
+            Debug.Log("[GeminiVoiceInterface] ⏹ StopRecording() -> STT");
 
-        chatManager?.RemoveListeningBubble();
-        chatManager?.CreateUserTypingBubble();
-        wakeWordListener?.ResumeListening();
+            chatManager?.RemoveListeningBubble();
+            chatManager?.CreateUserTypingBubble();
+            wakeWordListener?.ResumeListening();
 
-        byte[] audioData = WavUtility.FromAudioClip(recording);
-        StartCoroutine(SendAudioToSTT(audioData));
+            if (recording == null)
+            {
+                Debug.LogError("[GeminiVoiceInterface] Recording is null!");
+                chatManager?.FinalizeUserTypingBubble("[Recording error]");
+                if (statusText != null) statusText.text = "Recording error. Please try again.";
+                return;
+            }
+
+            byte[] audioData = WavUtility.FromAudioClip(recording);
+            
+            if (audioData == null || audioData.Length == 0)
+            {
+                Debug.LogError("[GeminiVoiceInterface] Audio data is empty!");
+                chatManager?.FinalizeUserTypingBubble("[Empty audio]");
+                if (statusText != null) statusText.text = "No audio recorded. Please try again.";
+                return;
+            }
+
+            StartCoroutine(SendAudioToSTT(audioData));
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[GeminiVoiceInterface] Exception in StopAndProcessRecording: {ex.Message}");
+            chatManager?.FinalizeUserTypingBubble("[Recording error]");
+            if (statusText != null) statusText.text = "Recording processing error. Please try again.";
+            isRecording = false;
+            wakeWordListener?.ResumeListening();
+        }
     }
 
     private IEnumerator SendAudioToSTT(byte[] audioData)
     {
-        UnityWebRequest request = UnityWebRequest.PostWwwForm(speechToText_URL, "POST");
-        request.certificateHandler = new CertsHandler();
-        request.uploadHandler = new UploadHandlerRaw(audioData);
-        request.downloadHandler = new DownloadHandlerBuffer();
-        request.SetRequestHeader("Content-Type", "audio/wav");
+        const int maxRetries = 3;
+        float retryDelay = 1f;
 
-        yield return request.SendWebRequest();
-
-        if (request.result == UnityWebRequest.Result.Success)
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            string transcription = request.downloadHandler.text;
-            Debug.Log("[GeminiVoiceInterface] 🗣 STT -> " + transcription);
+            UnityWebRequest request = null;
+            bool hasException = false;
+            string exceptionMessage = null;
+            
+            request = UnityWebRequest.PostWwwForm(speechToText_URL, "POST");
+            request.certificateHandler = new CertsHandler();
+            request.uploadHandler = new UploadHandlerRaw(audioData);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "audio/wav");
+            request.timeout = 15; // 15 second timeout
 
-            chatManager?.FinalizeUserTypingBubble(transcription);
-            StartCoroutine(SendPromptToGemini(transcription));
+            yield return request.SendWebRequest();
+
+            // Process result outside of try-catch to allow proper control flow
+            bool success = false;
+            bool shouldRetryRequest = false;
+            bool shouldBreak = false;
+            float waitTime = 0f;
+            string transcription = null;
+
+            try
+            {
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    transcription = request.downloadHandler.text;
+                    
+                    // Validate transcription
+                    if (string.IsNullOrWhiteSpace(transcription))
+                    {
+                        Debug.LogWarning("[GeminiVoiceInterface] STT returned empty transcription");
+                        if (attempt < maxRetries)
+                        {
+                            Debug.Log($"[GeminiVoiceInterface] Retrying STT ({attempt}/{maxRetries})...");
+                            request?.Dispose();
+                            shouldRetryRequest = true;
+                            waitTime = retryDelay;
+                            retryDelay *= 2f;
+                        }
+                        else
+                        {
+                            if (statusText != null) statusText.text = "Could not understand audio. Please try again.";
+                            chatManager?.FinalizeUserTypingBubble("[No speech detected]");
+                            wakeWordListener?.ResumeListening();
+                            request?.Dispose();
+                            shouldBreak = true;
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("[GeminiVoiceInterface] 🗣 STT -> " + transcription);
+                        chatManager?.FinalizeUserTypingBubble(transcription);
+                        success = true;
+                    }
+                }
+                else
+                {
+                    // Handle specific error cases
+                    string errorMsg = $"STT Error (attempt {attempt}/{maxRetries}): {request.error}";
+                    
+                    if (request.responseCode == 429) // Rate limited
+                    {
+                        Debug.LogWarning($"[GeminiVoiceInterface] {errorMsg} - Rate limited");
+                        if (attempt < maxRetries)
+                        {
+                            request?.Dispose();
+                            shouldRetryRequest = true;
+                            waitTime = retryDelay * 2f;
+                            retryDelay *= 2f;
+                        }
+                    }
+                    else if (request.responseCode >= 500 && request.responseCode < 600) // Server error
+                    {
+                        Debug.LogWarning($"[GeminiVoiceInterface] {errorMsg} - Server error");
+                        if (attempt < maxRetries)
+                        {
+                            request?.Dispose();
+                            shouldRetryRequest = true;
+                            waitTime = retryDelay;
+                            retryDelay *= 2f;
+                        }
+                    }
+                    else if (request.responseCode == 0) // Network error
+                    {
+                        Debug.LogWarning($"[GeminiVoiceInterface] {errorMsg} - Network error");
+                        if (attempt < maxRetries)
+                        {
+                            request?.Dispose();
+                            shouldRetryRequest = true;
+                            waitTime = retryDelay;
+                            retryDelay *= 2f;
+                        }
+                    }
+                    
+                    if (!shouldRetryRequest)
+                    {
+                        Debug.LogError($"[GeminiVoiceInterface] {errorMsg}");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                hasException = true;
+                exceptionMessage = ex.Message;
+            }
+            finally
+            {
+                request?.Dispose();
+            }
+
+            // Handle control flow outside of try-catch
+            if (shouldBreak)
+            {
+                yield break;
+            }
+
+            if (shouldRetryRequest)
+            {
+                yield return new WaitForSeconds(waitTime);
+                continue;
+            }
+
+            if (success && !string.IsNullOrEmpty(transcription))
+            {
+                // Start Gemini request
+                StartCoroutine(SendPromptToGemini(transcription));
+                yield break;
+            }
+
+            if (hasException)
+            {
+                Debug.LogError($"[GeminiVoiceInterface] STT Exception (attempt {attempt}/{maxRetries}): {exceptionMessage}");
+                if (attempt < maxRetries)
+                {
+                    yield return new WaitForSeconds(retryDelay);
+                    retryDelay *= 2f;
+                    continue;
+                }
+            }
         }
-        else
-        {
-            Debug.LogError("[GeminiVoiceInterface] STT Error: " + request.error);
-            statusText.text = "STT error. Please try again.";
-            chatManager?.FinalizeUserTypingBubble("[Transcription échouée]");
-            wakeWordListener?.PauseListening();
-        }
+
+        // All retries failed
+        if (statusText != null) statusText.text = "Speech recognition service unavailable. Please try again.";
+        chatManager?.FinalizeUserTypingBubble("[Transcription failed]");
+        wakeWordListener?.ResumeListening();
     }
 
     private IEnumerator SendPromptToGemini(string userText)
@@ -330,6 +505,21 @@ public class GeminiVoiceInterface : MonoBehaviour
     }
 
     private void HandleGeminiResponseAndSpeak(string geminiJson)
+    {
+        try
+        {
+            HandleGeminiResponseAndSpeakInternal(geminiJson);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[GeminiVoiceInterface] Exception in HandleGeminiResponseAndSpeak: {ex.Message}\n{ex.StackTrace}");
+            if (statusText != null) statusText.text = "Error processing response. Please try again.";
+            chatManager?.FinalizeBotTypingBubble("An error occurred while processing the response.");
+            wakeWordListener?.ResumeListening();
+        }
+    }
+
+    private void HandleGeminiResponseAndSpeakInternal(string geminiJson)
     {
         GeminiContinueResponse parsed = null;
         try { parsed = JsonUtility.FromJson<GeminiContinueResponse>(geminiJson); } catch { }
@@ -416,37 +606,113 @@ public class GeminiVoiceInterface : MonoBehaviour
 
         string clean = NormalizeWhitespace(fullText);
         var chunks = BuildTtsChunks(clean,
-                                    maxCharsPerChunk: 900,   // safe pour bcp d'APIs TTS
-                                    hardMaxChars: 1200,   // coupe dur si phrase très longue
-                                    maxChunks: 8);     // met une limite pour éviter 10 min d'audio
+                                    maxCharsPerChunk: 900,
+                                    hardMaxChars: 1200,
+                                    maxChunks: 8);
 
         if (chunks.Count == 0)
             chunks.Add("...");
 
         isSpeaking = true;
 
+        // Cache manager lookup (do once, not in loop)
+        var cacheManager = GameObject.FindObjectOfType(System.Type.GetType("ResponseCacheManager"));
+        var tryGetMethod = cacheManager?.GetType().GetMethod("TryGetCachedAudio");
+        var cacheMethod = cacheManager?.GetType().GetMethod("CacheAudio");
+
         for (int i = 0; i < chunks.Count; i++)
         {
             if (!isSpeaking) break;
 
             var chunk = chunks[i];
-
             AudioClip clip = null;
-            yield return TtsFetchWithRetry(chunk, c => clip = c, err =>
+            bool cacheException = false;
+
+            // Try to check cache if available
+            if (tryGetMethod != null)
             {
-                Debug.LogError("[GeminiVoiceInterface][TTS] " + err);
-            });
+                try
+                {
+                    object[] parameters = new object[] { chunk, null };
+                    bool cached = (bool)tryGetMethod.Invoke(cacheManager, parameters);
+                    if (cached && parameters[1] != null)
+                    {
+                        clip = (AudioClip)parameters[1];
+                        Debug.Log($"[GeminiVoiceInterface] Using cached TTS audio ({i + 1}/{chunks.Count})");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[GeminiVoiceInterface] Cache lookup failed: {ex.Message}");
+                    cacheException = true;
+                }
+            }
+
+            if (clip == null)
+            {
+                // Fetch from TTS service
+                bool fetchComplete = false;
+                yield return TtsFetchWithRetry(chunk, c => 
+                {
+                    clip = c;
+                    fetchComplete = true;
+                    
+                    // Try to cache the audio clip if cache manager exists
+                    if (c != null && cacheMethod != null && !cacheException)
+                    {
+                        try
+                        {
+                            cacheMethod.Invoke(cacheManager, new object[] { chunk, c });
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Debug.LogWarning($"[GeminiVoiceInterface] Failed to cache TTS audio: {ex.Message}");
+                        }
+                    }
+                }, err =>
+                {
+                    Debug.LogError($"[GeminiVoiceInterface][TTS] Chunk {i + 1}/{chunks.Count} failed: {err}");
+                    fetchComplete = true;
+                });
+
+                // Safety timeout
+                float timeout = 30f;
+                float elapsed = 0f;
+                while (!fetchComplete && elapsed < timeout)
+                {
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
+
+                if (elapsed >= timeout)
+                {
+                    Debug.LogError($"[GeminiVoiceInterface][TTS] Chunk {i + 1}/{chunks.Count} timed out");
+                    continue;
+                }
+            }
 
             if (!isSpeaking) break;
 
             if (clip == null || clip.loadState != AudioDataLoadState.Loaded)
             {
-                Debug.LogWarning("[GeminiVoiceInterface] TTS: chunk audio invalide, on skip.");
+                Debug.LogWarning($"[GeminiVoiceInterface] TTS: chunk {i + 1}/{chunks.Count} audio invalid, skipping.");
                 continue;
             }
 
-            audioSource.clip = clip;
-            audioSource.Play();
+            bool playbackException = false;
+            try
+            {
+                audioSource.clip = clip;
+                audioSource.Play();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[GeminiVoiceInterface] Audio playback error: {ex.Message}");
+                playbackException = true;
+            }
+
+            if (playbackException)
+                break;
 
             yield return new WaitWhile(() => isSpeaking && audioSource.isPlaying);
         }
@@ -455,6 +721,8 @@ public class GeminiVoiceInterface : MonoBehaviour
 
         if (statusText != null)
             statusText.text = "Say the wake word or press to speak";
+
+        wakeWordListener?.ResumeListening();
     }
 
     public void ForceStopTTS()
@@ -464,6 +732,22 @@ public class GeminiVoiceInterface : MonoBehaviour
             Debug.Log("[GeminiVoiceInterface] ⛔ Interruption vocale demandée");
             audioSource.Stop();
             isSpeaking = false;
+            
+            // Try to cancel any pending TTS requests if queue manager exists
+            if (!string.IsNullOrEmpty(_currentTTSRequestId))
+            {
+                var queueManager = GameObject.FindObjectOfType(System.Type.GetType("RequestQueueManager"));
+                if (queueManager != null)
+                {
+                    var cancelMethod = queueManager.GetType().GetMethod("CancelRequest");
+                    if (cancelMethod != null)
+                    {
+                        cancelMethod.Invoke(queueManager, new object[] { _currentTTSRequestId });
+                    }
+                }
+                _currentTTSRequestId = null;
+            }
+            
             if (statusText != null)
                 statusText.text = "Say the wake word or press to speak";
         }
@@ -471,6 +755,60 @@ public class GeminiVoiceInterface : MonoBehaviour
         {
             Debug.Log("[GeminiVoiceInterface] ForceStopTTS() appelé mais rien à stopper.");
         }
+    }
+
+    /// <summary>
+    /// Cancels any in-progress Gemini request.
+    /// </summary>
+    public void CancelGeminiRequest()
+    {
+        if (_geminiInFlight)
+        {
+            if (!string.IsNullOrEmpty(_currentGeminiRequestId))
+            {
+                var queueManager = GameObject.FindObjectOfType(System.Type.GetType("RequestQueueManager"));
+                if (queueManager != null)
+                {
+                    var cancelMethod = queueManager.GetType().GetMethod("CancelRequest");
+                    if (cancelMethod != null)
+                    {
+                        cancelMethod.Invoke(queueManager, new object[] { _currentGeminiRequestId });
+                    }
+                }
+                _currentGeminiRequestId = null;
+            }
+            
+            _geminiInFlight = false;
+            
+            if (statusText != null)
+                statusText.text = "Request cancelled";
+            
+            Debug.Log("[GeminiVoiceInterface] Gemini request cancelled by user");
+        }
+    }
+
+    /// <summary>
+    /// Cancels all in-progress operations (STT, Gemini, TTS).
+    /// </summary>
+    public void CancelAllOperations()
+    {
+        CancelGeminiRequest();
+        ForceStopTTS();
+        
+        // Stop recording if active
+        if (isRecording)
+        {
+            isRecording = false;
+            OnStopListening?.Invoke();
+            Microphone.End(null);
+            chatManager?.RemoveListeningBubble();
+            wakeWordListener?.ResumeListening();
+        }
+        
+        if (statusText != null)
+            statusText.text = "All operations cancelled";
+        
+        Debug.Log("[GeminiVoiceInterface] All operations cancelled");
     }
 
     // -------- Retry policy TTS --------
