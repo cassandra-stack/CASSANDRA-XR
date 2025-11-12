@@ -45,10 +45,8 @@ public class DropdownVolumeLoader : MonoBehaviour
     [Tooltip("Facteur d'échelle de départ (volume minuscule au début du reveal)")]
     public float startScaleFactor = 0.02f;
 
-    // on stocke l'échelle cible du parent pour pouvoir la restaurer après shrink
     private Vector3 _targetScale = Vector3.one;
 
-    // pour éviter les chevauchements si l'utilisateur spamme le dropdown
     private Coroutine _currentRoutine;
 
     void Awake()
@@ -78,7 +76,6 @@ public class DropdownVolumeLoader : MonoBehaviour
         string modalityCode = dropdown.options[idx].text.Trim().ToLowerInvariant();
         Debug.Log($"[DropdownVolumeLoader] User selected modality: {modalityCode}");
 
-        // Annule une précédente séquence si l'utilisateur reclique vite
         if (_currentRoutine != null)
         {
             StopCoroutine(_currentRoutine);
@@ -93,7 +90,7 @@ public class DropdownVolumeLoader : MonoBehaviour
             progressPanelRoot.SetActive(true);
 
         if (progressAnimator != null)
-            progressAnimator.ResetPanel(); // remet alpha = 1, scale normale, active l'objet
+            progressAnimator.ResetPanel();
 
         if (progressBar != null)
             progressBar.ResetProgress();
@@ -110,9 +107,6 @@ public class DropdownVolumeLoader : MonoBehaviour
         if (sessionInitializer != null && volumeDVR != null)
             sessionInitializer.ForceRendererAlpha(volumeDVR.gameObject, 0f);
 
-        //
-        // 3. FAUX CHARGEMENT FLUIDE (barre + texte dynamiques)
-        //
         float t = 0f;
         while (t < fakeLoadDuration)
         {
@@ -127,7 +121,6 @@ public class DropdownVolumeLoader : MonoBehaviour
                 progressBar.SetProgress(fake, filenameGuess, 1, 1);
             }
 
-            // texte dynamique (reprend la logique du SessionVolumeInitializer)
             if (progressLabelTMP != null && sessionInitializer != null)
             {
                 progressLabelTMP.text = sessionInitializer.BuildLoadingMessage(fake, 1, 1, filenameGuess);
@@ -137,7 +130,7 @@ public class DropdownVolumeLoader : MonoBehaviour
         }
 
 
-        volumeDVR.LoadVolumeByCode(modalityCode);
+        yield return volumeDVR.LoadVolumeByCodeAsync(modalityCode);
 
         if (progressLabelTMP != null)
         {

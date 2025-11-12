@@ -257,7 +257,7 @@ public static class VRDFLoader
             // Labels discrets (0..255) -> R8 + Point
             var texLbl = new Texture3D(dimX, dimY, dimZ, TextureFormat.R8, false);
             texLbl.wrapMode   = TextureWrapMode.Clamp;
-            texLbl.filterMode = FilterMode.Point;
+            texLbl.filterMode = FilterMode.Bilinear;
 
             // Convert float label -> byte (0..255)
             int voxels = data.labelData.Length;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System;
 
 public class SessionVolumeLoader : MonoBehaviour
 {
@@ -121,20 +122,57 @@ public class SessionVolumeLoader : MonoBehaviour
 
     private void HandleDownloadCompleted(string defaultCode)
     {
-        volumeDVR.LoadVolumeByCode(defaultCode);
+        // On lance simplement la nouvelle coroutine qui gère l'ordre des opérations
+        StartCoroutine(LoadAndAnimateVolume(defaultCode));
+    }
 
+    private IEnumerator LoadAndAnimateVolume(string defaultCode)
+    {
+        // ÉTAPE 1: Mettre à jour le texte
         if (progressLabelTMP != null)
             progressLabelTMP.text = "Préparation du volume 3D...\nAnalyse et reconstruction...";
 
-        if (progressPanelRoot) progressPanelRoot.SetActive(false);
+        // ÉTAPE 2: Attendre la fin du chargement du volume
+        yield return StartCoroutine(volumeDVR.LoadVolumeByCodeAsync(defaultCode));
 
+        // ÉTAPE 3: Attendre la fin de l'animation de fondu du volume
         if (_appearRoutine != null) StopCoroutine(_appearRoutine);
         _appearRoutine = StartCoroutine(CrossfadeBrainToVolume(revealDuration));
+        yield return _appearRoutine; // <-- ATTENTE AJOUTÉE
 
+        // ÉTAPE 4: Lancer le fondu du panneau de progression
         if (progressAnimator != null)
+        {
             progressAnimator.FadeOutAndDisable();
 
-        Debug.Log("[SessionVolumeLoader] Volume chargé et affiché ✅");
+            // --- DÉBUT DU CORRECTIF CS1626 ---
+            
+            // On prépare une durée d'attente par défaut
+            float waitDuration = 1.0f; 
+
+            try
+            {
+                // On essaie de récupérer la VRAIE durée de l'animation
+                // (En supposant que 'progressAnimator' a bien un champ 'fadeDuration')
+                waitDuration = progressAnimator.fadeDuration + 0.1f;
+            }
+            catch (Exception ex)
+            {
+                // Sécurité si 'fadeDuration' n'existe pas ou autre erreur
+                Debug.LogWarning($"[SessionVolumeLoader] Impossible de lire 'progressAnimator.fadeDuration' ({ex.Message}). Utilisation d'une attente fixe de {waitDuration}s.");
+            }
+
+            // On place le 'yield return' EN DEHORS du try...catch
+            yield return new WaitForSeconds(waitDuration);
+            
+            // --- FIN DU CORRECTIF CS1626 ---
+        }
+
+        // ÉTAPE 5: Forcer la désactivation du panneau (le fallback robuste)
+        if (progressPanelRoot)
+            progressPanelRoot.SetActive(false);
+
+        Debug.Log("[SessionVolumeLoader] Volume chargé et panneau caché ✅");
     }
 
     private void HandleError(string message)
@@ -191,7 +229,9 @@ public class SessionVolumeLoader : MonoBehaviour
             yield break;
 
         Renderer[] placeholderRenderers = brainPlaceholder.GetComponentsInChildren<Renderer>(true);
-        Renderer[] dvrRenderers         = volumeDVRObject.GetComponentsInChildren<Renderer>(true);
+        
+        Material dvrMaterial = (volumeDVR != null) ? volumeDVR.volumeMaterial : null;
+        bool dvrMatOk = dvrMaterial != null && dvrMaterial.HasProperty("_Color");
 
         float t = 0f;
 
@@ -214,14 +254,11 @@ public class SessionVolumeLoader : MonoBehaviour
                 }
             }
 
-            foreach (var r in dvrRenderers)
+            if (dvrMatOk)
             {
-                if (r != null && r.material != null && r.material.HasProperty("_Color"))
-                {
-                    Color c = r.material.color;
-                    c.a = alphaIn;
-                    r.material.color = c;
-                }
+                Color c = dvrMaterial.GetColor("_Color");
+                c.a = alphaIn;
+                dvrMaterial.SetColor("_Color", c);
             }
 
             float scaledFactor = Mathf.Lerp(startScaleFactor, 1f, ease);
@@ -231,6 +268,7 @@ public class SessionVolumeLoader : MonoBehaviour
         }
 
         brainPlaceholder.SetActive(false);
+        
         ForceRendererAlpha(volumeDVRObject, 1f);
         volumeDVRParent.localScale = _targetParentScale;
     }
@@ -238,15 +276,12 @@ public class SessionVolumeLoader : MonoBehaviour
     public void ForceRendererAlpha(GameObject go, float alpha)
     {
         if (go == null) return;
-        var rends = go.GetComponentsInChildren<Renderer>(true);
-        foreach (var r in rends)
+
+        if (volumeDVR != null && volumeDVR.volumeMaterial != null && volumeDVR.volumeMaterial.HasProperty("_Color"))
         {
-            if (r != null && r.material != null && r.material.HasProperty("_Color"))
-            {
-                Color c = r.material.color;
-                c.a = alpha;
-                r.material.color = c;
-            }
+            Color c = volumeDVR.volumeMaterial.GetColor("_Color");
+            c.a = alpha;
+            volumeDVR.volumeMaterial.SetColor("_Color", c);
         }
     }
 }

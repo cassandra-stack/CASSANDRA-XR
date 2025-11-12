@@ -15,7 +15,25 @@ Shader "Volume/VolumeDVR_URP_Quest"
         _IsLabelMap ("Is LabelMap", Int) = 1
 
         // Qualité/perf
-        _StepCount ("Ray Steps", Range(32, 160)) = 32
+        _StepCount ("Ray Steps", Range(32, 160)) = 80
+        _LargeStepScale ("Large Step Scale", Range(2, 32)) = 10.0
+
+        [Header(Lighting)]
+        _LightDir ("Light Dir (world)", Vector) = (0, 1, 1, 0)
+        _LightIntensity ("Light Intensity", Range(0, 5)) = 3.0
+
+        // Lumière 2 (secondaire/rim)
+        _LightDir2 ("Light 2 Dir (world)", Vector) = (0, -1, -1, 0)
+        _LightIntensity2 ("Light 2 Intensity", Range(0, 5)) = 1.5
+
+        _LightIntensity3 ("Light 3 (Headlight) Intensity", Range(0, 5)) = 5
+
+        _Ambient ("Ambient", Range(0, 1)) = 0.55
+        _EpsNormal ("Normal Epsilon", Float) = 0.002
+
+        _Brightness   ("Brightness", Range(0,3)) = 1.2
+        _AlphaScale   ("Alpha Scale (global)", Range(0,2)) = 1.0
+        _AlphaGamma   ("Alpha Gamma (shape)", Range(0.2,3)) = 1.5
     }
 
     SubShader
@@ -23,7 +41,7 @@ Shader "Volume/VolumeDVR_URP_Quest"
         Tags { "RenderType"="Transparent" "Queue"="Transparent" "IgnoreProjector"="True" "RenderPipeline"="UniversalPipeline" }
         ZWrite Off
         Blend SrcAlpha OneMinusSrcAlpha
-        Cull Back
+        Cull Off
 
         Pass
         {
@@ -66,6 +84,25 @@ Shader "Volume/VolumeDVR_URP_Quest"
             int   _HasWeights;
             int   _IsLabelMap;
             float _StepCount;
+            float _LargeStepScale;
+
+            float _ScaleMax;       // NEW : max scale monde (x/y/z)
+            float _DensityComp;    // NEW : 1/_ScaleMax par défaut
+
+            float _Brightness;
+            float _AlphaScale;
+            float _AlphaGamma;
+
+            float4 _LightDir;
+            float  _LightIntensity;
+
+            float4 _LightDir2;
+            float  _LightIntensity2;
+
+            float  _LightIntensity3;
+
+            float  _Ambient;
+            float  _EpsNormal;
 
             // ===== Structs =====
             struct Attributes
@@ -122,7 +159,7 @@ Shader "Volume/VolumeDVR_URP_Quest"
                 float2 uv = float2(u, 0.5);
 
                 float4 col  = SAMPLE_TEXTURE2D_LOD(_TFTex,        sampler_TFTex,        uv, 0.0);
-float4 ctrl = SAMPLE_TEXTURE2D_LOD(_LabelCtrlTex, sampler_LabelCtrlTex, uv, 0.0);
+                float4 ctrl = SAMPLE_TEXTURE2D_LOD(_LabelCtrlTex, sampler_LabelCtrlTex, uv, 0.0);
 
 
                 col.rgb *= ctrl.rgb;
@@ -159,6 +196,42 @@ float4 ctrl = SAMPLE_TEXTURE2D_LOD(_LabelCtrlTex, sampler_LabelCtrlTex, uv, 0.0)
                 return tExit > max(tEnter, 0.0);
             }
 
+            float rand(float2 co)
+            {
+                return frac(sin(dot(co.xy, float2(12.9898,78.233))) * 43758.5453);
+            }
+
+            inline float3 EstimateNormalFromLabels(float3 pObj)
+            {
+                float eps = _EpsNormal; // Utilise la propriété pour le 'pas'
+                
+                float3 uvw_xp = (pObj + float3(+eps,0,0)) + 0.5;
+                float3 uvw_xm = (pObj + float3(-eps,0,0)) + 0.5;
+                float3 uvw_yp = (pObj + float3(0,+eps,0)) + 0.5;
+                float3 uvw_ym = (pObj + float3(0,-eps,0)) + 0.5;
+                float3 uvw_zp = (pObj + float3(0,0,+eps)) + 0.5;
+                float3 uvw_zm = (pObj + float3(0,0,-eps)) + 0.5;
+
+                // Goûter le volume (valeur de label, 0..1)
+                float vxp = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_xp).r;
+                float vxm = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_xm).r;
+                float vyp = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_yp).r;
+                float vym = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_ym).r;
+                float vzp = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_zp).r;
+                float vzm = SAMPLE_TEXTURE3D(_VolumeTexLabels, sampler_VolumeTexLabels, uvw_zm).r;
+
+                // Calculer le gradient (différences centrales)
+                float3 grad = float3(
+                    vxp - vxm,
+                    vyp - vym,
+                    vzp - vzm
+                );
+
+                // Normaliser (diviser par la longueur)
+                float len2 = max(dot(grad, grad), 1e-6);
+                return grad / sqrt(len2);
+            }
+
             // ===== Vertex & Fragment =====
 
             Varyings vert (Attributes v)
@@ -173,7 +246,6 @@ float4 ctrl = SAMPLE_TEXTURE2D_LOD(_LabelCtrlTex, sampler_LabelCtrlTex, uv, 0.0)
                 o.positionCS   = TransformWorldToHClip(posWS);
                 o.posWS        = posWS;
 
-                // (gardés pour compat, mais non utilisés ensuite)
                 float3 camPosWS = GetCameraPositionWS();
                 o.rayOriginWS   = camPosWS;
                 o.rayDirWS      = normalize(posWS - camPosWS);
@@ -196,28 +268,44 @@ float4 ctrl = SAMPLE_TEXTURE2D_LOD(_LabelCtrlTex, sampler_LabelCtrlTex, uv, 0.0)
 
                 // Marching
                 half stepCount = max(_StepCount, 32.0h);
-                float tStart    = max(t0, 0.0);
-                float tStep     = (t1 - tStart) / stepCount;
+                float tStart    = max(t0, 0.0) + 1e-4;
+
+                float tStepSmall = (t1 - tStart) / stepCount;
+                float tStepLarge = tStepSmall * _LargeStepScale;
 
                 half4 acc = half4(0.0h,0.0h,0.0h,0.0h);
+
                 float  t   = tStart;
 
+                // jittering - at low sampling 32 - 96 it makes noises on the volume
+                // when combined with lambert lighting
+                // consume 10 - 20 fps
+                // TODO : find a technique to reduce noises at low sampling
+                t += rand(i.positionCS.xy) * tStepLarge;
+                float3 Lobj1 = normalize(TransformWorldToObjectDir(_LightDir.xyz));
+                float3 Lobj2 = normalize(TransformWorldToObjectDir(_LightDir2.xyz));
+                float3 Lobj3 = -rdOS;
+
+                int s = 0;
                 [loop]
-                for (int s = 0; s < 512; s++)
+                while (t < t1 && acc.a < 0.995h && s < 512)
                 {
-                    if (s >= (int)stepCount) break;
+                    s++;
 
                     float3 posOS = roOS + rdOS * t;
                     float3 uvw   = ObjectToUVW(posOS);
 
+                    if (any(uvw < 0) || any(uvw > 1)) { 
+                        t += tStepLarge;
+                        continue; 
+                    }
+
                     int  lbl = SampleLabelInt(uvw);
                     half w   = SampleWeight(uvw);
 
-                    if (any(uvw < 0) || any(uvw > 1)) { t += tStep; continue; }
-
-                    if (w < 0.01 || lbl == 0) 
+                    if (w < 0.01 || lbl == 0)
                     {
-                        t += tStep;
+                        t += tStepLarge;
                         continue;
                     }
 
@@ -229,22 +317,49 @@ float4 ctrl = SAMPLE_TEXTURE2D_LOD(_LabelCtrlTex, sampler_LabelCtrlTex, uv, 0.0)
                         { int ldbg = SampleLabelInt(uvw); float v=(float)ldbg/255.0h; return float4(v,v,v,1); }
                     #endif
 
-                    half4 col;
+                    half4 col_base; // NOUVEAU: Renommé en "col_base"
                     #if defined(BYPASS_TF_ON)
-                        { float v = (half)lbl / 255.0h; col = half4(v, v, v, w); }
+                        { float v = (half)lbl / 255.0h; col_base = half4(v, v, v, w); }
                     #else
-                        col   = TFColorForLabel(lbl);
-                        col.a = saturate(col.a) * w;
-                        col.rgb *= col.a; // premul
+                        col_base = TFColorForLabel(lbl);
                     #endif
 
-                    // Over
-                    acc.rgb += (1.0h - acc.a) * col.rgb;
-                    acc.a   += (1.0h - acc.a) * col.a;
+                    // NOUVEAU: Calcule l'alpha pour ce pas (aSample)
+                    half aSample = pow(saturate(col_base.a), _AlphaGamma) * w * _AlphaScale;
+                    aSample *= _DensityComp; // Applique la compensation de densité
 
-                    if (acc.a > 0.995h) break;
-                    t += tStep;
+                    // lambert lighting - consume 10 - 20 fps
+                    if (aSample > 0.001h)
+                    {
+                        // 1. Estimer la normale
+                        float3 N = EstimateNormalFromLabels(posOS);
+
+                        // 2. Calculer l'éclairage de Lambert pour les DEUX lumières
+                        float lambert1 = saturate(dot(N, Lobj1));
+                        float lambert2 = saturate(dot(N, Lobj2));
+                        float lambert3 = saturate(dot(N, Lobj3)); // <-- AJOUTÉ
+
+                        // 3. Accumuler l'éclairage total
+                        float lighting = _Ambient 
+                                       + (_LightIntensity * lambert1) 
+                                       + (_LightIntensity2 * lambert2)
+                                       + (_LightIntensity3 * lambert3);
+
+                        // 4. Appliquer l'éclairage à la couleur de base
+                        float3 litColor = col_base.rgb * lighting;
+
+                        // 5. Prémultiplier l'alpha (couleur * opacité)
+                        litColor *= aSample;
+
+                        // 6. Accumuler (Over)
+                        acc.rgb += (1.0h - acc.a) * litColor;
+                        acc.a   += (1.0h - acc.a) * aSample;
+                    }
+
+                    t += tStepSmall;
                 }
+
+                acc.rgb *= _Brightness;
 
                 return (float4)acc;
             }

@@ -110,19 +110,33 @@ public class HandPinchScaleXRHands : MonoBehaviour
             newScale *= correction;
         }
 
+
         if (!float.IsNaN(newScale.x) && !float.IsInfinity(newScale.x) &&
             !float.IsNaN(newScale.y) && !float.IsInfinity(newScale.y) &&
             !float.IsNaN(newScale.z) && !float.IsInfinity(newScale.z))
         {
             targetRoot.localScale = newScale;
-            float baseSteps = 128f;
-            float minSteps = 32f;
-            int newStepCount = (int)Mathf.Max(minSteps, baseSteps / newScale.x); 
+            // float baseSteps = 128f;
+            // float minSteps = 32f;
+            // int newStepCount = (int)Mathf.Max(minSteps, baseSteps / newScale.x); 
 
-            if (_volumeMaterial != null)
-            {
-                _volumeMaterial.SetFloat("_StepCount", newStepCount);
-            }
+            // if (_volumeMaterial != null)
+            // {
+            //     _volumeMaterial.SetFloat("_StepCount", newStepCount);
+            // }
+        }
+
+        if (_volumeMaterial != null)
+        {
+            // max des axes monde
+            var s = targetRoot.lossyScale;
+            float scaleMax = Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+            scaleMax = Mathf.Max(scaleMax, 0.001f);
+
+            _volumeMaterial.SetFloat("_ScaleCompensation", scaleMax);
+            // Optionnel, si tu gardes ces champs :
+            _volumeMaterial.SetFloat("_ScaleMax", scaleMax);
+            _volumeMaterial.SetFloat("_DensityComp", 1.0f / scaleMax);
         }
     }
 

@@ -3,6 +3,8 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
+using UnityEngine.Networking;         // pour UnityWebRequest
 
 [Serializable]
 public class VolumeLabelInfoRuntime
@@ -53,6 +55,8 @@ public class VolumeDVR : MonoBehaviour
 
     private Material _mat;
 
+    Vector3 _lastScale = Vector3.zero;
+
     [NonSerialized] public List<VolumeLabelInfoRuntime> labelInfos = new List<VolumeLabelInfoRuntime>();
 
     private VRDFVolumeData _labelsData;
@@ -79,23 +83,63 @@ public class VolumeDVR : MonoBehaviour
         }
     }
 
+    public DropdownVolumeLoader loader;
+    
+
     void Awake()
     {
-        var rend = GetComponent<Renderer>();
-        if (rend == null)
+        // <-- LOGS AJOUTÉS -->
+        Debug.LogWarning($"[VolumeDVR.Awake] -------------------------------------");
+        Debug.Log($"[VolumeDVR.Awake] 1. Instanciation du matériau...");
+        if (volumeMaterial == null)
         {
-            Debug.LogError("[VolumeDVR] Aucun Renderer trouvé sur l’objet.");
+            Debug.LogError("[VolumeDVR.Awake] ERREUR: Le champ 'volumeMaterial' est vide (None) !");
             return;
         }
 
-        if (volumeMaterial == null)
-            volumeMaterial = rend.sharedMaterial;
-        else
-            rend.sharedMaterial = volumeMaterial;
-
+        var rend = GetComponent<Renderer>();
         SelectShaderForPlatform(volumeMaterial);
+        Shader sh = volumeMaterial != null ? volumeMaterial.shader : Shader.Find("Volume/VolumeDVR_URP_Quest");
+        _mat = new Material(sh) { name = "VolumeDVR_Runtime" };
+        rend.material = _mat;
+        volumeMaterial = _mat;
 
-        _mat = volumeMaterial;
+        Debug.Log($"[VolumeDVR.Awake] 2. Lecture des réglages DEPUIS: {volumeMaterial.name} (fichier .mat)");
+        Debug.Log($"[VolumeDVR.Awake]    - Source LightIntensity: {volumeMaterial.GetFloat("_LightIntensity")}");
+        Debug.Log($"[VolumeDVR.Awake]    - Source LightIntensity3 (Headlight): {volumeMaterial.GetFloat("_LightIntensity3")}");
+        Debug.Log($"[VolumeDVR.Awake]    - Source Brightness: {volumeMaterial.GetFloat("_Brightness")}");
+        Debug.Log($"[VolumeDVR.Awake]    - Source AlphaScale: {volumeMaterial.GetFloat("_AlphaScale")}");
+        Debug.Log($"[VolumeDVR.Awake]    - Source StepCount: {volumeMaterial.GetFloat("_StepCount")}");
+
+        Debug.Log($"[VolumeDVR.Awake] 3. Matériau instancié '{_mat.name}' avec succès.");
+        Debug.LogWarning($"[VolumeDVR.Awake] -------------------------------------");
+    }
+
+    void LateUpdate()
+    {
+        var s = transform.lossyScale;
+        if ((s - _lastScale).sqrMagnitude > 1e-6f)
+        {
+            float scaleMax = Mathf.Max(s.x, Mathf.Max(s.y, s.z));
+            scaleMax = Mathf.Max(scaleMax, 0.001f);
+            volumeMaterial.SetFloat("_ScaleCompensation", scaleMax);
+            volumeMaterial.SetFloat("_ScaleMax", scaleMax);
+            volumeMaterial.SetFloat("_DensityComp", 1.0f / Mathf.Max(1e-4f, scaleMax)); // 1/scale
+            _lastScale = s;
+        }
+    }
+
+    void OnDestroy()
+    {
+        ReleaseOldTextures();
+        if (_mat) Destroy(_mat);
+    }
+
+    private void ReleaseOldTextures()
+    {
+        if (volumeTexLabels) { Destroy(volumeTexLabels); volumeTexLabels = null; }
+        if (volumeTexWeights){ Destroy(volumeTexWeights); volumeTexWeights = null; }
+        if (_labelCtrlTex)   { Destroy(_labelCtrlTex);   _labelCtrlTex = null; }
     }
 
     private void SelectShaderForPlatform(Material m)
@@ -122,51 +166,142 @@ public class VolumeDVR : MonoBehaviour
 #endif
     }
 
+    /// <summary>
+    /// Version coroutine: tente d'abord le cache (persistentDataPath), sinon StreamingAssets (Android via UWR -> copie).
+    /// Construit un nom de fichier strict: {code}_lw.vrdf
+    /// </summary>
+    // Dans VolumeDVR.cs
+    public IEnumerator LoadVolumeByCodeAsync(string code)
+    {
+        Debug.LogWarning("[VolumeDVR.LoadVolume] -------------------------------------");
+        Debug.Log($"[VolumeDVR.LoadVolume] DÉBUT: Demande de chargement du code '{code}'");
 
+        if (string.IsNullOrEmpty(code))
+        {
+            Debug.LogError("[VolumeDVR] Code vide !");
+            yield break;
+        }
+
+        string filename = $"{code.ToLowerInvariant()}_lw.vrdf";
+        string cachePath = Path.Combine(Application.persistentDataPath, filename);
+        string saPath = Path.Combine(Application.streamingAssetsPath, filename);
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    if (File.Exists(cachePath))
+    {
+        Debug.Log($"[VolumeDVR.LoadVolume] -> Cache (Android): {cachePath}");
+        vrdfFusedFileName = filename;
+        InternalLoadFused(cachePath);
+        ApplyAfterLoad();
+        Debug.LogWarning($"[VolumeDVR.LoadVolume] FIN: Chargement Cache '{code}' terminé.");
+        yield break;
+    }
+
+    Debug.Log($"[VolumeDVR.LoadVolume] Cache introuvable, fallback scan (Android) pour '{code}'…");
+    yield return LoadByScanningFallback(code);
+    yield break;
+
+#else
+        if (File.Exists(cachePath))
+        {
+            Debug.Log($"[VolumeDVR.LoadVolume] -> Trouvé via CachePath: {cachePath}");
+            vrdfFusedFileName = filename;
+            InternalLoadFused(cachePath);
+            ApplyAfterLoad();
+            Debug.LogWarning($"[VolumeDVR.LoadVolume] FIN: Chargement CachePath '{code}' terminé.");
+            yield break;
+        }
+
+        if (File.Exists(saPath))
+        {
+            Debug.Log($"[VolumeDVR.LoadVolume] -> Trouvé via StreamingAssets: {saPath}");
+            vrdfFusedFileName = filename;
+            InternalLoadFused(saPath);
+            ApplyAfterLoad();
+            Debug.LogWarning($"[VolumeDVR.LoadVolume] FIN: Chargement StreamingAssets '{code}' terminé.");
+            yield break;
+        }
+
+        Debug.Log($"[VolumeDVR.LoadVolume] Fallback scan (Desktop/iOS) pour '{code}'…");
+        yield return LoadByScanningFallback(code);
+#endif
+    }
+
+    /// <summary>
+    /// API synchrone conservée pour compat : démarre simplement la coroutine.
+    /// </summary>
     public void LoadVolumeByCode(string code)
     {
-        if (string.IsNullOrEmpty(code)) { Debug.LogError("[VolumeDVR] Code vide !"); return; }
+        StartCoroutine(LoadVolumeByCodeAsync(code));
+    }
 
+    /// <summary>
+    /// Fallback : reprend ta logique de scan (*.vrdf) dans persistentDataPath puis StreamingAssets.
+    /// </summary>
+    private IEnumerator LoadByScanningFallback(string code)
+    {
+        string lowerCode = code.ToLowerInvariant();
         string[] searchRoots;
+
 #if UNITY_ANDROID && !UNITY_EDITOR
-            searchRoots = new string[] { Application.persistentDataPath };
+        searchRoots = new string[] { Application.persistentDataPath };
 #else
         searchRoots = usePersistentDataFirst
             ? new string[] { Application.persistentDataPath, Application.streamingAssetsPath }
             : new string[] { Application.streamingAssetsPath, Application.persistentDataPath };
 #endif
 
-        string lowerCode = code.ToLowerInvariant();
         string fileMatch = null;
-
         foreach (var root in searchRoots)
         {
-            if (!Directory.Exists(root))
-                continue;
-
-            string[] vrdfFiles = Directory.GetFiles(root, "*.vrdf", SearchOption.AllDirectories);
-            fileMatch = vrdfFiles.FirstOrDefault(f =>
-                Path.GetFileName(f).ToLowerInvariant().Contains(lowerCode)
-            );
-            if (fileMatch != null)
-                break;
+            fileMatch = FindFileByCodeInRoot(root, code);
+            if (fileMatch != null) break;
+            yield return null; // laisse respirer la frame si gros dossier
         }
 
         if (fileMatch == null)
         {
-            Debug.LogWarning($"[VolumeDVR] Aucun fichier trouvé contenant '{code}' ni dans cache ni dans StreamingAssets.");
-            return;
+            Debug.LogWarning($"[VolumeDVR] Aucun fichier trouvé contenant '{code}' en fallback (cache/StreamingAssets).");
+            yield break;
         }
 
-        Debug.Log($"[VolumeDVR] Chargement du volume : {fileMatch}");
-
+        Debug.Log($"[VolumeDVR] (fallback) Chargement : {fileMatch}");
         vrdfFusedFileName = Path.GetFileName(fileMatch);
         InternalLoadFused(fileMatch);
         ApplyAfterLoad();
     }
 
+    private static bool FileMatchesCodeSuffix(string filePath, string code)
+    {
+        string name = Path.GetFileNameWithoutExtension(filePath).ToLowerInvariant();
+        string c = code.ToLowerInvariant();
+
+        // Exemples acceptés :
+        // BraTS-GLI-00014-000-t1c_lw
+        // t1c_lw
+        // myPrefix-t2w_lw
+        return name.EndsWith($"-{c}_lw") || name.EndsWith($"{c}_lw");
+    }
+
+    private string FindFileByCodeInRoot(string root, string code)
+    {
+        if (!Directory.Exists(root)) return null;
+
+        string lowerCode = code.ToLowerInvariant();
+
+        foreach (var f in Directory.GetFiles(root, "*.vrdf", SearchOption.AllDirectories))
+        {
+            if (Path.GetFileName(f).ToLowerInvariant().Contains(lowerCode))
+            {
+                return f;
+            }
+        }
+        return null;
+    }
+
     private void InternalLoadFused(string absolutePath)
     {
+        CleanupPreviousTextures();
         if (string.IsNullOrEmpty(absolutePath))
         {
             Debug.LogError("[VolumeDVR] InternalLoadFused: chemin vide");
@@ -221,6 +356,7 @@ public class VolumeDVR : MonoBehaviour
 
     private void ApplyToMaterial()
     {
+        var m = volumeMaterial;
         if (volumeMaterial == null)
         {
             Debug.LogError("[VolumeDVR] volumeMaterial not set.");
@@ -276,16 +412,14 @@ public class VolumeDVR : MonoBehaviour
             volumeMaterial.SetInt("_HasWeights", 0);
         }
 
-        volumeMaterial.SetTexture("_TFTex", tfTexCurrent != null ? tfTexCurrent : Texture2D.blackTexture);
-
-        volumeMaterial.SetInt("_IsLabelMap", (d.tf.type == "labelmap") ? 1 : 0);
-
-        volumeMaterial.SetFloat("_P1", p1);
-        volumeMaterial.SetFloat("_P99", p99);
-        volumeMaterial.SetVector("_Dim", new Vector4(dimX, dimY, dimZ, 1f));
-        volumeMaterial.SetMatrix("_Affine", affine);
-        volumeMaterial.SetMatrix("_InvAffine", invAffine);
-
+        m.SetTexture("_VolumeTexLabels", texLbl ? texLbl : BlackTex3D);
+        m.SetTexture("_VolumeTexWeights", texW ? texW : BlackTex3D);
+        m.SetInt("_HasWeights", texW ? 1 : 0);
+        m.SetTexture("_TFTex", tfTexCurrent ? tfTexCurrent : Texture2D.blackTexture);
+        m.SetInt("_IsLabelMap", (d.tf.type == "labelmap") ? 1 : 0);
+        m.DisableKeyword("_DEBUG_MODE_LABELS");
+        m.DisableKeyword("_DEBUG_MODE_WEIGHTS");
+        m.DisableKeyword("_DEBUG_MODE_UVW");
 
         var mr = GetComponent<MeshRenderer>();
         if (mr && mr.sharedMaterial != volumeMaterial)
@@ -305,6 +439,42 @@ public class VolumeDVR : MonoBehaviour
         _labelCtrlTex.SetPixels(_labelCtrlPixels);
         _labelCtrlTex.Apply(false);
 
+        volumeMaterial.SetTexture("_LabelCtrlTex", _labelCtrlTex);
+    }
+
+    private void InitLabelCtrlTextureFromLUT()
+    {
+        if (tfTexCurrent == null) { InitLabelCtrlTexture_AllOn(); return; }
+
+        var lut = tfTexCurrent.GetPixels();
+        int len = Mathf.Min(256, lut.Length);
+
+        _labelCtrlTex = new Texture2D(256, 1, TextureFormat.RGBA32, false, true);
+        _labelCtrlTex.wrapMode = TextureWrapMode.Clamp;
+        _labelCtrlTex.filterMode = FilterMode.Point;
+
+        _labelCtrlPixels = new Color[256];
+        for (int i = 0; i < 256; i++)
+        {
+            float a = (i < len) ? lut[i].a : 0f;   // ← alpha LUT
+            Color c = (i < len) ? new Color(lut[i].r, lut[i].g, lut[i].b, a)
+                                : new Color(1, 1, 1, 0); // par défaut masqué
+            _labelCtrlPixels[i] = c;
+        }
+        _labelCtrlTex.SetPixels(_labelCtrlPixels);
+        _labelCtrlTex.Apply(false, true);
+        volumeMaterial.SetTexture("_LabelCtrlTex", _labelCtrlTex);
+    }
+
+    private void InitLabelCtrlTexture_AllOn()
+    {
+        _labelCtrlTex = new Texture2D(256, 1, TextureFormat.RGBA32, false, true);
+        _labelCtrlTex.wrapMode = TextureWrapMode.Clamp;
+        _labelCtrlTex.filterMode = FilterMode.Point;
+        _labelCtrlPixels = new Color[256];
+        for (int i = 0; i < 256; i++) _labelCtrlPixels[i] = new Color(1,1,1,1);
+        _labelCtrlTex.SetPixels(_labelCtrlPixels);
+        _labelCtrlTex.Apply(false, true);
         volumeMaterial.SetTexture("_LabelCtrlTex", _labelCtrlTex);
     }
 
@@ -477,19 +647,40 @@ public class VolumeDVR : MonoBehaviour
         return true;
     }
 
-    private void UpdateDebugKeywords()
+    private void SafeDestroy(ref Texture3D tex)
     {
-        if (volumeMaterial == null) return;
+        if (tex != null) { Destroy(tex); tex = null; }
+    }
+    private void SafeDestroy(ref Texture2D tex)
+    {
+        if (tex != null) { Destroy(tex); tex = null; }
+    }
 
-        volumeMaterial.DisableKeyword("_DEBUG_MODE_LABELS");
-        volumeMaterial.DisableKeyword("_DEBUG_MODE_WEIGHTS");
-        volumeMaterial.DisableKeyword("_DEBUG_MODE_UVW");
-
-        switch (debugMode)
+    /// Appelé AVANT de charger un nouveau VRDF pour libérer l'ancien jeu de textures
+    private void CleanupPreviousTextures()
+    {
+        // Débinde pour éviter les refs pendantes côté material
+        if (volumeMaterial)
         {
-            case 1: volumeMaterial.EnableKeyword("_DEBUG_MODE_LABELS"); break;
-            case 2: volumeMaterial.EnableKeyword("_DEBUG_MODE_WEIGHTS"); break;
-            case 3: volumeMaterial.EnableKeyword("_DEBUG_MODE_UVW"); break;
+            volumeMaterial.SetTexture("_VolumeTexLabels", BlackTex3D);
+            volumeMaterial.SetTexture("_VolumeTexWeights", BlackTex3D);
+            volumeMaterial.SetTexture("_TFTex", Texture2D.blackTexture);
+            volumeMaterial.SetInt("_HasWeights", 0);
         }
+
+        SafeDestroy(ref volumeTexLabels);
+        SafeDestroy(ref volumeTexWeights);
+        SafeDestroy(ref tfTexCurrent);
+
+        // LabelCtrlTex est recréée à chaque load → détruis l’ancienne
+        SafeDestroy(ref _labelCtrlTex);
+
+        _labelCtrlPixels = null;
+
+        // Optionnel: purge agressive (Android seulement)
+    #if UNITY_ANDROID && !UNITY_EDITOR
+        Resources.UnloadUnusedAssets();
+        System.GC.Collect();
+    #endif
     }
 }
