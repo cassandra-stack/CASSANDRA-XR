@@ -21,6 +21,8 @@ public class SessionDataController : MonoBehaviour
     public bool LastIsVr { get; private set; }
 
     public static string PicovoiceAccessKey { get; private set; }
+    public static string SttUrl { get; private set; }
+    public static string TtsUrl { get; private set; }
     public static event Action OnAccessKeyReady;
 
     public event Action OnReloadRequested;
@@ -123,7 +125,7 @@ public class SessionDataController : MonoBehaviour
         }
 
         yield return StartCoroutine(
-            studyService.FetchStudies((studies, codeFromService, p_key) =>
+            studyService.FetchStudies((studies, codeFromService, config) =>
             {
                 if (studies == null || studies.Count == 0)
                 {
@@ -142,10 +144,31 @@ public class SessionDataController : MonoBehaviour
                 studiesResult = studies;
                 fetchDone = true;
 
-                if (!string.IsNullOrEmpty(p_key) && string.IsNullOrEmpty(PicovoiceAccessKey))
+                bool configChanged = false;
+
+                if (string.IsNullOrEmpty(PicovoiceAccessKey) && !string.IsNullOrEmpty(config.PicovoiceKey))
                 {
-                    PicovoiceAccessKey = p_key;
+                    PicovoiceAccessKey = config.PicovoiceKey;
+                    configChanged = true;
                     Debug.Log("[SessionDataController] Picovoice AccessKey received.");
+                }
+
+                if (string.IsNullOrEmpty(SttUrl) && !string.IsNullOrEmpty(config.SttUrl))
+                {
+                    SttUrl = config.SttUrl;
+                    configChanged = true;
+                    Debug.Log("[SessionDataController] STT URL received.");
+                }
+                
+                if (string.IsNullOrEmpty(TtsUrl) && !string.IsNullOrEmpty(config.TtsUrl))
+                {
+                    TtsUrl = config.TtsUrl;
+                    configChanged = true;
+                    Debug.Log("[SessionDataController] TTS URL received.");
+                }
+
+                if (configChanged)
+                {
                     OnAccessKeyReady?.Invoke();
                 }
             }, defaultCode)

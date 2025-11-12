@@ -8,10 +8,11 @@ using System.Text.RegularExpressions;
 
 public class GeminiVoiceInterface : MonoBehaviour
 {
-    [Header("Google Cloud / Backend URLs")]
-    public string speechToText_URL = "https://stt-92429070891.europe-west1.run.app/";
-    public string gemini_URL;
-    public string textToSpeech_URL = "https://tts-92429070891.europe-west1.run.app/";
+    [NonSerialized] public string speechToText_URL;
+    [NonSerialized] public string gemini_URL;
+    [NonSerialized] public string textToSpeech_URL;
+
+    private bool _isConfigLoaded = false;
 
     [Header("Confidential Mode")]
     public bool confidentialMode = false;
@@ -79,6 +80,41 @@ public class GeminiVoiceInterface : MonoBehaviour
         }
 
         geminiClient = new GeminiClient(gemini_URL);
+        StartCoroutine(LoadConfigRoutine());
+    }
+
+        private IEnumerator LoadConfigRoutine()
+    {
+        if (!string.IsNullOrEmpty(SessionDataController.SttUrl) && !string.IsNullOrEmpty(SessionDataController.TtsUrl))
+        {
+            speechToText_URL = SessionDataController.SttUrl;
+            textToSpeech_URL = SessionDataController.TtsUrl;
+            _isConfigLoaded = true;
+            Debug.Log("[GeminiVoiceInterface] STT/TTS URLs loaded from static config.");
+            yield break;
+        }
+
+        Debug.Log("[GeminiVoiceInterface] Waiting for STT/TTS URLs from SessionDataController...");
+        bool configReady = false;
+        Action onConfigReady = () => {
+            if (!string.IsNullOrEmpty(SessionDataController.SttUrl) && !string.IsNullOrEmpty(SessionDataController.TtsUrl))
+            {
+                configReady = true;
+            }
+        };
+        SessionDataController.OnAccessKeyReady += onConfigReady;
+
+        while (!configReady)
+        {
+            yield return null;
+        }
+        
+        SessionDataController.OnAccessKeyReady -= onConfigReady;
+
+        speechToText_URL = SessionDataController.SttUrl;
+        textToSpeech_URL = SessionDataController.TtsUrl;
+        _isConfigLoaded = true;
+        Debug.Log("[GeminiVoiceInterface] STT/TTS URLs received.");
     }
 
     private void Start()
@@ -217,6 +253,13 @@ public class GeminiVoiceInterface : MonoBehaviour
             return;
         }
 
+        if (!_isConfigLoaded)
+        {
+            Debug.LogError("[GeminiVoiceInterface] Cannot record: STT/TTS URLs not loaded yet.");
+            if (statusText != null) statusText.text = "Error: Config not loaded.";
+            return;
+        }
+
         wakeWordListener?.PauseListening();
 
         silenceTimer = 0f;
@@ -254,6 +297,15 @@ public class GeminiVoiceInterface : MonoBehaviour
 
     private IEnumerator SendAudioToSTT(byte[] audioData)
     {
+        if (string.IsNullOrEmpty(speechToText_URL))
+        {
+            Debug.LogError("[GeminiVoiceInterface] STT Error: URL is not set (fetch failed?).");
+            statusText.text = "STT URL missing. Please restart.";
+            chatManager?.FinalizeUserTypingBubble("[Transcription échouée: STT URL manquante]");
+            wakeWordListener?.PauseListening();
+            yield break;
+        }
+
         UnityWebRequest request = UnityWebRequest.PostWwwForm(speechToText_URL, "POST");
         request.certificateHandler = new CertsHandler();
         request.uploadHandler = new UploadHandlerRaw(audioData);
@@ -275,7 +327,8 @@ public class GeminiVoiceInterface : MonoBehaviour
             Debug.LogError("[GeminiVoiceInterface] STT Error: " + request.error);
             statusText.text = "STT error. Please try again.";
             chatManager?.FinalizeUserTypingBubble("[Transcription échouée]");
-            wakeWordListener?.PauseListening();
+            wakeWordListener?.ResumeListening();
+            yield break;
         }
     }
 
@@ -408,6 +461,14 @@ public class GeminiVoiceInterface : MonoBehaviour
     // ---- TTS ----
     private IEnumerator SendToTTSAndPlay(string fullText)
     {
+
+        if (string.IsNullOrEmpty(textToSpeech_URL))
+        {
+            Debug.LogError("[GeminiVoiceInterface] TTS Error: URL is not set (fetch failed?).");
+            if (statusText != null) statusText.text = "TTS URL missing. Please restart.";
+            yield break;
+        }
+
         if (string.IsNullOrWhiteSpace(fullText))
             yield break;
 

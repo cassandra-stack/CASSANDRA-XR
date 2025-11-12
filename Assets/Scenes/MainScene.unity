@@ -6958,9 +6958,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9697aebae388b9040be0fa5b621af5a0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  speechToText_URL: https://stt-92429070891.europe-west1.run.app/
-  gemini_URL: https://apiconnect-92429070891.us-central1.run.app/
-  textToSpeech_URL: https://tts-92429070891.europe-west1.run.app/
+  speechToText_URL: 
+  gemini_URL: 
+  textToSpeech_URL: 
   confidentialMode: 0
   redactUiIdentity: 0
   redactChatContent: 0

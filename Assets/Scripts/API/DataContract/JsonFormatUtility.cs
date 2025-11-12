@@ -16,6 +16,12 @@ public class RootResponse
 
     [JsonProperty("picovoice_key")]
     public string picovoice_key;
+
+    [JsonProperty("stt_key")]
+    public string stt_key;
+
+    [JsonProperty("tts_key")]
+    public string tts_key;
 }
 
 [Serializable]

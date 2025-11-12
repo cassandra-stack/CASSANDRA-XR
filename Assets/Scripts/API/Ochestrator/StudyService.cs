@@ -4,13 +4,23 @@ using System.Collections;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
+/// <summary>
+/// Conteneur pour les clés/endpoints récupérés de l'API.
+/// </summary>
+public struct ApiConfig
+{
+    public string PicovoiceKey;
+    public string SttUrl;
+    public string TtsUrl;
+}
+
 public class StudyService : MonoBehaviour
 {
     [SerializeField]
     private string endpointUrl =
         "https://holonauts.fr/active";
 
-    public IEnumerator FetchStudies(System.Action<List<StudyForUnity>, string, string> onDone, string defaultCode)
+    public IEnumerator FetchStudies(System.Action<List<StudyForUnity>, string, ApiConfig> onDone, string defaultCode)
     {
         using (UnityWebRequest req = UnityWebRequest.Get(endpointUrl))
         {
@@ -21,7 +31,7 @@ public class StudyService : MonoBehaviour
             if (req.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError("Error fetching studies: " + req.error);
-                onDone?.Invoke(null, defaultCode, null);
+                onDone?.Invoke(null, defaultCode, new ApiConfig());
                 yield break;
             }
 
@@ -32,7 +42,13 @@ public class StudyService : MonoBehaviour
                 studies.Add(StudyMapper.Map(studyRaw));
             }
 
-            onDone?.Invoke(studies, defaultCode, root.picovoice_key);
+            var config = new ApiConfig
+            {
+                PicovoiceKey = root.picovoice_key,
+                SttUrl = root.stt_key,
+                TtsUrl = root.tts_key
+            };
+            onDone?.Invoke(studies, defaultCode, config);
         }
     }
 
