@@ -10,7 +10,7 @@ public class StudyService : MonoBehaviour
     private string endpointUrl =
         "https://holonauts.fr/active";
 
-    public IEnumerator FetchStudies(System.Action<List<StudyForUnity>, string> onDone, string defaultCode)
+    public IEnumerator FetchStudies(System.Action<List<StudyForUnity>, string, string> onDone, string defaultCode)
     {
         using (UnityWebRequest req = UnityWebRequest.Get(endpointUrl))
         {
@@ -21,7 +21,7 @@ public class StudyService : MonoBehaviour
             if (req.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError("Error fetching studies: " + req.error);
-                onDone?.Invoke(null, defaultCode);
+                onDone?.Invoke(null, defaultCode, null);
                 yield break;
             }
 
@@ -32,7 +32,7 @@ public class StudyService : MonoBehaviour
                 studies.Add(StudyMapper.Map(studyRaw));
             }
 
-            onDone?.Invoke(studies, defaultCode);
+            onDone?.Invoke(studies, defaultCode, root.picovoice_key);
         }
     }
 

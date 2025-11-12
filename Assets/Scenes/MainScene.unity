@@ -6894,7 +6894,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1938695363
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6907,7 +6907,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 27d998be30a5eb24da94a84226975937, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  accessKey: Mrc8zIAXZpbu7O/FiiaNCsQgtn1S+Mu8c46WkLzr3Xy2je3UnzAM9Q==
   keywordPathAndroid: Porcupine/keywords/cassandra_fr_android_v3_0_0.ppn
   keywordPathWindows: Porcupine/keywords/cassandra_fr_windows_v3_0_0.ppn
   modelPath: Porcupine/models/porcupine_params_fr.pv

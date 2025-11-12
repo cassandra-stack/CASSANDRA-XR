@@ -9,9 +9,6 @@ using Pv.Unity; // PorcupineManager
 
 public class PorcupineWakeWordListener : MonoBehaviour
 {
-    [Header("Picovoice / Porcupine")]
-    [SerializeField] private string accessKey = "Mrc8zIAXZpbu7O/FiiaNCsQgtn1S+Mu8c46WkLzr3Xy2je3UnzAM9Q==";
-
     [Header("Fichiers (dans StreamingAssets)")]
     [SerializeField] private string keywordPathAndroid = "Porcupine/keywords/cassandra_fr_android_v3_0_0.ppn";
     [SerializeField] private string keywordPathWindows = "Porcupine/keywords/cassandra_fr_windows_v3_0_0.ppn";
@@ -39,6 +36,32 @@ public class PorcupineWakeWordListener : MonoBehaviour
 
     private IEnumerator InitRoutine()
     {
+
+        string fetchedAccessKey = SessionDataController.PicovoiceAccessKey;
+        if (string.IsNullOrEmpty(fetchedAccessKey))
+        {
+            Debug.Log("[WakeWord] Waiting for AccessKey from SessionDataController...");
+            bool keyReady = false;
+            Action onKeyReady = () => { 
+                keyReady = true; 
+                fetchedAccessKey = SessionDataController.PicovoiceAccessKey;
+            };
+            SessionDataController.OnAccessKeyReady += onKeyReady;
+
+            while (!keyReady)
+            {
+                yield return null;
+            }
+            SessionDataController.OnAccessKeyReady -= onKeyReady;
+            Debug.Log("[WakeWord] AccessKey received.");
+        }
+
+        if (string.IsNullOrEmpty(fetchedAccessKey))
+        {
+            Debug.LogError("[WakeWord] ❌ AccessKey is NULL or EMPTY after fetch. Aborting init.");
+            yield break;
+        }
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Microphone))
         {
@@ -71,15 +94,15 @@ public class PorcupineWakeWordListener : MonoBehaviour
         Debug.Log($"[WakeWord] Microphone.devices = {(devs != null ? string.Join(",", devs) : "null")}");
 #endif
 
-        Debug.Log($"[WakeWord] AccessKey length = {accessKey?.Length ?? 0}");
-        Debug.Log($"[WakeWord] AccessKey = {accessKey ?? ""}");
+        Debug.Log($"[WakeWord] AccessKey length = {fetchedAccessKey?.Length ?? 0}");
+        Debug.Log($"[WakeWord] AccessKey = {fetchedAccessKey ?? ""}");
 
         try
         {
             if (!string.IsNullOrEmpty(absKeyword) && File.Exists(absKeyword))
             {
                 porcupineManager = PorcupineManager.FromKeywordPaths(
-                    accessKey,
+                    fetchedAccessKey,
                     new List<string> { absKeyword },
                     HandleWakeWordDetected,
                     absModel,
@@ -92,7 +115,7 @@ public class PorcupineWakeWordListener : MonoBehaviour
             {
                 // Fallback built-in
                 porcupineManager = PorcupineManager.FromBuiltInKeywords(
-                    accessKey,
+                    fetchedAccessKey,
                     new List<Porcupine.BuiltInKeyword> { builtInKeyword },
                     HandleWakeWordDetected,
                     modelPath: string.IsNullOrEmpty(absModel) ? null : absModel,

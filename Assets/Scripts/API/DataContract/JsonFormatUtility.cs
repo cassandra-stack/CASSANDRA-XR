@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 
 [Serializable]
-public class RootResponse {
+public class RootResponse
+{
     [JsonProperty("success")]
     public bool success;
 
@@ -12,6 +13,9 @@ public class RootResponse {
 
     [JsonProperty("count")]
     public int count;
+
+    [JsonProperty("picovoice_key")]
+    public string picovoice_key;
 }
 
 [Serializable]

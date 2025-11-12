@@ -20,6 +20,9 @@ public class SessionDataController : MonoBehaviour
     public string LastStudyCode { get; private set; }
     public bool LastIsVr { get; private set; }
 
+    public static string PicovoiceAccessKey { get; private set; }
+    public static event Action OnAccessKeyReady;
+
     public event Action OnReloadRequested;
     public event Action<List<VrdfAsset>, string> OnStudiesReady;
     public event Action<float, int, int, string> OnDownloadProgress;
@@ -120,7 +123,7 @@ public class SessionDataController : MonoBehaviour
         }
 
         yield return StartCoroutine(
-            studyService.FetchStudies((studies, codeFromService) =>
+            studyService.FetchStudies((studies, codeFromService, p_key) =>
             {
                 if (studies == null || studies.Count == 0)
                 {
@@ -133,11 +136,18 @@ public class SessionDataController : MonoBehaviour
                     _vrdfAssets = study.vrdfAssets ?? new List<VrdfAsset>();
 
                     LastStudyCode = study.code;
-                    LastIsVr      = study.isVr;
+                    LastIsVr = study.isVr;
                 }
 
                 studiesResult = studies;
                 fetchDone = true;
+
+                if (!string.IsNullOrEmpty(p_key) && string.IsNullOrEmpty(PicovoiceAccessKey))
+                {
+                    PicovoiceAccessKey = p_key;
+                    Debug.Log("[SessionDataController] Picovoice AccessKey received.");
+                    OnAccessKeyReady?.Invoke();
+                }
             }, defaultCode)
         );
 
