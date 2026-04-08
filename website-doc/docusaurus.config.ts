@@ -58,7 +58,7 @@ const config: Config = {
       title: 'CASSANDRA XR',
       logo: {
         alt: 'CASSANDRA logo',
-        src: 'img/cassandra-mark.svg',
+        src: 'img/cassandra-logo.png',
       },
       items: [
         {
