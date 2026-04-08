@@ -5,7 +5,7 @@ sidebar_position: 3
 slug: /architecture/scene-and-flows
 ---
 
-## 7. MainScene Composition
+## MainScene Composition
 
 `Assets/Scenes/MainScene.unity` is the primary runtime scene.
 
@@ -52,9 +52,37 @@ The scene therefore combines:
 
 in a single scene composition.
 
-## 8. End-to-End Runtime Sequences
+## End-to-End Runtime Sequences
 
-## 8.1 Initial Startup Sequence
+The simplified flow below shows the three most important runtime paths:
+
+```text
+MainScene load
+  -> SessionVolumeLoader.Start()
+  -> SessionDataController.BeginLoad()
+  -> StudyService.FetchStudies()
+  -> StudyRuntimeSO updated
+  -> VRDF assets downloaded to cache
+  -> VolumeDVR.LoadVolumeByCodeAsync()
+  -> textures and materials prepared
+  -> loading UI fades out
+
+WebSocket reload
+  -> PusherClient receives frame
+  -> main-thread event dispatch
+  -> SessionDataController reload request
+  -> cache refresh if needed
+  -> VolumeDVR reloads current modality
+
+Voice interaction
+  -> wake word or user input
+  -> recording and silence detection
+  -> STT request
+  -> conversational backend request
+  -> TTS response and chat UI update
+```
+
+## Initial Startup Sequence
 
 1. `MainScene` loads
 2. `PusherClient` starts and attempts websocket connection
@@ -73,7 +101,7 @@ in a single scene composition.
 12. The placeholder brain crossfades into the rendered volume
 13. Loading UI is faded out
 
-## 8.2 Websocket Reload Sequence
+## Websocket Reload Sequence
 
 1. Backend sends `vr.status.changed`
 2. `PusherClient` parses payload and enqueues it
@@ -85,7 +113,7 @@ in a single scene composition.
 6. `SessionVolumeLoader` receives the reload event
 7. Visuals reset and a new load pipeline starts
 
-## 8.3 Modality Change Sequence
+## Modality Change Sequence
 
 1. User changes dropdown selection
 2. `DropdownVolumeLoader` starts a transition coroutine
@@ -96,7 +124,7 @@ in a single scene composition.
 7. Placeholder crossfades to the new volume
 8. Progress panel fades out
 
-## 8.4 Voice Interaction Sequence
+## Voice Interaction Sequence
 
 1. Wake word or input action starts listening
 2. `GeminiVoiceInterface.StartRecording()` begins microphone capture
@@ -108,7 +136,7 @@ in a single scene composition.
 8. Response is parsed and rendered in the chat window
 9. TTS endpoint is called and audio chunks are played back
 
-## 9. Data and Event Model
+## Data and Event Model
 
 ### Core Runtime Events
 
@@ -142,3 +170,8 @@ in a single scene composition.
 - Active chat display/history: `ChatManager`
 - Active voice configuration: `SessionDataController` static properties
 
+## Continue Reading
+
+- [Glossary](/docs/glossary)
+- [Runtime Subsystems](/docs/architecture/runtime-subsystems)
+- [Platform, Build, and Security](/docs/architecture/platform-and-security)

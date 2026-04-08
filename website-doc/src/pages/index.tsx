@@ -9,34 +9,45 @@ import styles from './index.module.css';
 const pillars = [
   {
     title: 'AI-Assisted Interpretation',
-    text: 'Interpretive workflows are surfaced through the viewer as part of the technical stack, not as a detached AI layer.',
+    text: 'Inference-driven interpretation is integrated into viewer workflows, keeping analysis contextual to the displayed study state.',
   },
   {
     title: 'Volume Rendering Pipeline',
-    text: 'The documentation exposes how volumetric datasets are decoded, prepared, and rendered in the XR viewer runtime.',
+    text: 'The runtime documents how VRDF datasets are decoded, fused across imaging inputs, converted into textures, and rendered through the XR shader path.',
   },
   {
-    title: 'Multimodal Fusion',
-    text: 'CASSANDRA XR brings multiple imaging signals into a spatial viewing layer designed for exploration and engineering reference.',
+    title: 'XR Interaction',
+    text: 'The viewer is built around natural user interaction, including mid-air manipulation, vision-based hand tracking, and spatial UI behaviors for immersive use.',
   },
 ];
 
 const entries = [
   {
-    title: 'Architecture',
-    text: 'System shape, scene composition, runtime orchestration, and how the XR viewer fits into the broader CASSANDRA platform.',
+    title: 'System Architecture',
+    text: 'System shape, scene composition, orchestration, and how the XR viewer fits into the broader CASSANDRA platform.',
     to: '/docs/technical-architecture',
+    meta: 'System overview',
   },
   {
-    title: 'Rendering',
-    text: 'VRDF loading, texture preparation, shader selection, and the constraints of rendering medical volumes on XR hardware.',
-    to: '/docs/architecture/runtime-subsystems#63-volume-data-format-and-decoding',
+    title: 'Rendering Pipeline',
+    text: 'VRDF loading, texture preparation, shader selection, multimodal composition, and the constraints of rendering medical volumes on XR hardware.',
+    to: '/docs/architecture/runtime-subsystems#volume-data-format-and-decoding',
+    meta: 'Rendering internals',
   },
   {
-    title: 'Integration Flows',
+    title: 'Runtime Flows',
     text: 'How the viewer connects session data, multimodal assets, voice runtime, and study-level interaction flows.',
-    to: '/docs/architecture/scene-and-flows#8-end-to-end-runtime-sequences',
+    to: '/docs/architecture/scene-and-flows#end-to-end-runtime-sequences',
+    meta: 'Execution paths',
   },
+];
+
+const facts = [
+  'Unity 6 / URP',
+  'Meta Quest and Desktop',
+  'VRDF Volume Pipeline',
+  'Websocket Session Sync',
+  'Voice and AI Runtime',
 ];
 
 export default function Home(): ReactNode {
@@ -45,7 +56,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Documentation"
-      description="Public technical showcase of the CASSANDRA XR viewer.">
+      description="Technical documentation for the CASSANDRA XR viewer.">
       <main className={styles.page}>
         <section className={styles.hero}>
           <div className={styles.ringAura} />
@@ -54,35 +65,44 @@ export default function Home(): ReactNode {
               <p className={styles.kicker}>XR Technical Documentation</p>
               <h1>Engineering the XR Layer of CASSANDRA</h1>
               <p className={styles.lead}>
-                A public technical view of the viewer architecture behind multimodal
-                fusion, volume rendering, and AI-assisted interpretation.
+                Technical documentation for the viewer layer behind multimodal fusion,
+                volume rendering, XR interaction, and AI-assisted interpretation.
               </p>
               <div className={styles.actions}>
-                <a className="button button--primary button--lg" href={walkthroughUrl}>
-                  Watch the walkthrough
-                </a>
-                <Link className="button button--secondary button--lg" to="/docs/technical-architecture">
-                  Open the technical docs
+                <Link className="button button--primary button--lg" to="/docs/">
+                  Open Documentation
+                </Link>
+                <Link className={styles.textLink} to="/docs/technical-architecture">
+                  Technical Architecture
                 </Link>
               </div>
             </div>
 
-            <div className={styles.mediaCard}>
-              <video
-                className={styles.video}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                aria-label="CASSANDRA XR walkthrough video">
-                <source src={walkthroughUrl} type="video/mp4" />
-              </video>
+            <div className={styles.mediaBlock}>
+              <p className={styles.mediaLabel}>Viewer Walkthrough</p>
+              <div className={styles.mediaCard}>
+                <video
+                  className={styles.video}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  aria-label="CASSANDRA XR walkthrough video">
+                  <source src={walkthroughUrl} type="video/mp4" />
+                </video>
+              </div>
               <div className={styles.mediaCaption}>
-                XR walkthrough of the viewer runtime and interaction layer.
+                Runtime behavior, viewer interaction, and spatial exploration in the XR client.
               </div>
             </div>
           </div>
+        </section>
+
+        <section className={clsx('container', styles.factsBand)}>
+          {facts.map((fact) => (
+            <span key={fact} className={styles.factItem}>{fact}</span>
+          ))}
         </section>
 
         <section className={clsx('container', styles.pillars)}>
@@ -97,9 +117,7 @@ export default function Home(): ReactNode {
         <section className={clsx('container', styles.platformBand)}>
           <div className={styles.bandLine} />
           <p>
-            CASSANDRA XR is the spatial imaging layer of the broader CASSANDRA
-            platform, turning multimodal medical data into an interactive viewer for
-            exploration, interpretation, and engineering integration.
+            CASSANDRA XR is the spatial imaging layer of the broader CASSANDRA platform, turning multimodal medical data into an interactive viewer for exploration, interpretation, and engineering integration.
           </p>
           <div className={styles.bandLine} />
         </section>
@@ -107,10 +125,9 @@ export default function Home(): ReactNode {
         <section className={clsx('container', styles.entriesSection)}>
           <div className={styles.entriesIntro}>
             <p className={styles.sectionLabel}>Documentation Entry Points</p>
-            <h2>Start From The Part You Need</h2>
+            <h2>Navigate The Viewer By Concern</h2>
             <p>
-              The architecture documentation is split into focused sections so you can
-              move directly into system structure, rendering details, or runtime flows.
+              The architecture documentation is split into focused sections so you can move directly into structure, rendering internals, or runtime execution flows.
             </p>
           </div>
 
@@ -118,6 +135,7 @@ export default function Home(): ReactNode {
             {entries.map((entry) => (
               <article key={entry.title} className={styles.entryRow}>
                 <div className={styles.entryCopy}>
+                  <p className={styles.entryMeta}>{entry.meta}</p>
                   <h3>{entry.title}</h3>
                   <p>{entry.text}</p>
                 </div>
@@ -132,3 +150,4 @@ export default function Home(): ReactNode {
     </Layout>
   );
 }
+

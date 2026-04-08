@@ -5,36 +5,38 @@ sidebar_position: 6
 slug: /architecture/extension-guide
 ---
 
-## 15. Extension Guide
+## Extension Guide
 
-## 15.1 Add a New Backend Study Field
+This section is a practical guide for changing the system without losing track of the main architectural seams.
+
+## Add a New Backend Study Field
 
 1. Add the property in `JsonFormatUtility.cs`
 2. Map it in `StudyMapper.cs`
 3. Store it in `StudyRuntimeSO.cs` if it is needed after fetch
 4. Update any UI presenters that should display it
 
-## 15.2 Add a New Modality
+## Add a New Modality
 
 1. Ensure backend exposes the new asset as a VRDF-like asset
 2. Ensure `StudyMapper` can derive the modality code
 3. Add the modality entry to the dropdown UI if needed
 4. Ensure the VRDF file naming matches `VolumeDVR.LoadVolumeByCodeAsync()` expectations
 
-## 15.3 Add a New Segmentation UI Behavior
+## Add a New Segmentation UI Behavior
 
 1. Extend `VolumeDVR` label control methods if needed
 2. Update `BrainMenuToggleToVolumeDVR`
 3. Optionally add richer item behavior via `XRMenuItemInteractable`
 
-## 15.4 Replace or Extend the AI Backend
+## Replace or Extend the AI Backend
 
 1. Update `StudyRuntimeSO` or backend payloads if endpoint discovery changes
 2. Extend `GeminiClient` transport logic
 3. Update `GeminiVoiceInterface` response parsing and history loading rules
 4. Keep confidential-mode behavior aligned with the new backend contract
 
-## 16. Recommended Documentation Ownership
+## Recommended Documentation Ownership
 
 This document should be maintained whenever one of the following changes:
 
@@ -52,7 +54,7 @@ Suggested future companion documents:
 - `docs/BUILD_AND_RELEASE.md`
 - `docs/SECURITY_NOTES.md`
 
-## 17. Summary
+## Summary
 
 CASSANDRA XR is a functional Unity XR application with a clear product focus:
 
@@ -79,3 +81,8 @@ with the voice/AI system acting as a second major vertical slice:
 
 Together, those two slices define the core identity of the application.
 
+## Continue Reading
+
+- [Glossary](/docs/glossary)
+- [Technical Architecture](/docs/technical-architecture)
+- [Runtime Subsystems](/docs/architecture/runtime-subsystems)

@@ -5,9 +5,9 @@ sidebar_position: 4
 slug: /architecture/platform-and-security
 ---
 
-## 10. Build and Platform Configuration
+## Build and Platform Configuration
 
-## 10.1 Unity Project Settings
+## Unity Project Settings
 
 The root `ProjectSettings.asset` still contains template-like values:
 
@@ -17,7 +17,7 @@ The root `ProjectSettings.asset` still contains template-like values:
 
 This should not be assumed to represent the final shipped Android identity.
 
-## 10.2 Build Profiles
+## Build Profiles
 
 The project uses Unity 6 build profiles under `Assets/Settings/Build Profiles`.
 
@@ -45,7 +45,7 @@ This profile appears closer to template/default state:
 
 Operationally, the repository suggests `Meta Quest 1.asset` is the build profile that matches the current product identity.
 
-## 10.3 Quality and Render Pipeline Assets
+## Quality and Render Pipeline Assets
 
 The project defines quality tiers in `ProjectSettings/QualitySettings.asset`:
 
@@ -73,7 +73,7 @@ Current quality settings indicate:
 
 That last mapping should be validated because it may not match the expected mobile optimization path.
 
-## 10.4 Android Customization
+## Android Customization
 
 ### Files
 
@@ -95,7 +95,7 @@ That last mapping should be validated because it may not match the expected mobi
 
 `Assets/Scripts/XR/ForceFFR.cs` forces high foveated rendering on Meta/Oculus runtime startup.
 
-## 11. Networking and Security Configuration
+## Networking and Security Configuration
 
 This section documents the current implementation, not a recommended production posture.
 
@@ -112,3 +112,8 @@ This section documents the current implementation, not a recommended production 
 The app is currently optimized for connectivity and deployment convenience rather than hardened transport security.
 That may be acceptable for a lab prototype or controlled environment, but it is not a secure production configuration for a medical system.
 
+## Continue Reading
+
+- [Glossary](/docs/glossary)
+- [Technical Architecture](/docs/technical-architecture)
+- [Performance, Testing, and Risks](/docs/architecture/performance-and-risks)

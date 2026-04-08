@@ -5,9 +5,9 @@ sidebar_position: 2
 slug: /architecture/runtime-subsystems
 ---
 
-## 6. Main Runtime Subsystems
+## Main Runtime Subsystems
 
-## 6.1 Study Acquisition and Session Orchestration
+## Study Acquisition and Session Orchestration
 
 This subsystem is responsible for discovering the current study, publishing runtime state, downloading volume assets, and reacting to backend state changes.
 
@@ -104,7 +104,7 @@ Published events:
 
 This is one of the most important classes in the codebase. It acts as the runtime coordinator between backend state, local cache, and downstream consumers.
 
-## 6.2 Real-Time Synchronization
+## Real-Time Synchronization
 
 The app includes a websocket listener to react to backend session state changes.
 
@@ -149,9 +149,15 @@ When the study code or VR mode changes:
 - It emits `OnReloadRequested`
 - It expects the session startup loader to begin the load pipeline again
 
-## 6.3 Volume Data Format and Decoding
+## Volume Data Format and Decoding
 
 The project uses a custom binary file format called VRDF.
+
+A public companion repository exists for the format itself:
+
+- [VRDF SDK](https://github.com/guillaume-schneider/vrdf-sdk)
+
+That repository documents the binary layout, export modes, Python-side encoding, and a reference Unity runtime around `.vrdf` assets.
 
 ### Main Component
 
@@ -213,7 +219,7 @@ For label maps, it builds both:
 
 This is a practical design because the render controller can switch display mode without having to reparse the VRDF file.
 
-## 6.4 Volume Rendering and Material Control
+## Volume Rendering and Material Control
 
 This subsystem controls the actual volumetric render object.
 
@@ -282,7 +288,7 @@ Before loading a new volume, `CleanupPreviousTextures()`:
 
 This explains why reload hitches can occur on constrained mobile hardware.
 
-## 6.5 Shader Architecture
+## Shader Architecture
 
 The project maintains two main volume shaders.
 
@@ -318,7 +324,25 @@ Characteristics:
 The Quest shader is clearly optimized for mobile constraints rather than visual completeness.
 That is consistent with the project goal and with the known performance issues around reload and modality switching.
 
-## 6.6 Startup, Progress, and Volume Reveal
+### Renderer Lineage
+
+The renderer shipped in CASSANDRA XR is centered on the viewer runtime contained in this repository:
+
+- `VolumeDVR`
+- `VolumeVRDFLoader`
+- `VolumeDVR_URP.shader`
+- `VolumeDVR_URP_Quest.shader`
+
+Related public context:
+
+- [VRDF SDK](https://github.com/guillaume-schneider/vrdf-sdk)
+  - documents the `.vrdf` data path and reference runtime assumptions
+- [HybridMedRenderer](https://github.com/cassandra-stack/HybridMedRenderer)
+  - an earlier prototype that explored hybrid surface-plus-volume rendering, VRDF support, and immersive visualization workflows
+
+The current CASSANDRA XR repository documents and ships the viewer-focused direct volume-rendering path used by the application.
+
+## Startup, Progress, and Volume Reveal
 
 This subsystem controls startup orchestration and load UX.
 
@@ -370,7 +394,7 @@ Responsibilities:
 - Performs fade-out and shrink animation
 - Can reset the panel before the next load
 
-## 6.7 Voice, AI, and Conversation Runtime
+## Voice, AI, and Conversation Runtime
 
 This is one of the largest and most functionally rich subsystems.
 
@@ -448,7 +472,7 @@ Current supported behaviors include:
 
 The implementation is pragmatic rather than cryptographically secure. It is a presentation-layer privacy mechanism, not a security boundary.
 
-## 6.8 UI and Metadata Presentation
+## UI and Metadata Presentation
 
 ### Main Components
 
@@ -488,7 +512,7 @@ These helpers support world-space UI behavior:
 This utility keeps a UI material property in sync with `RectTransform` size.
 It is a styling helper used by rounded-rectangle shader-driven UI panels.
 
-## 6.9 Report Viewer
+## Report Viewer
 
 ### Main Components
 
@@ -514,7 +538,7 @@ Responsibilities:
 
 This is a compact but functional XR-friendly report interaction pattern.
 
-## 6.10 XR Interaction Layer
+## XR Interaction Layer
 
 This subsystem exists in the repository, but not all of it is central to the currently active scene.
 
@@ -561,3 +585,8 @@ Responsibilities:
 
 This is a good example of a feature-specific adapter around renderer state.
 
+## Continue Reading
+
+- [VRDF](/docs/architecture/vrdf)
+- [Rendering Pipeline](/docs/architecture/rendering-pipeline)
+- [Backend Integration and Contracts](/docs/architecture/backend-integration)

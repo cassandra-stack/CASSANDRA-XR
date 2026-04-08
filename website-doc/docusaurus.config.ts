@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'CASSANDRA XR',
-  tagline: 'Public technical showcase of the XR viewer',
+  tagline: 'Technical documentation for the CASSANDRA XR viewer',
   favicon: 'img/cassandra-logo.png',
 
   future: {
@@ -85,6 +85,18 @@ const config: Config = {
               to: '/docs/architecture/scene-and-flows',
             },
             {
+              label: 'VRDF',
+              to: '/docs/architecture/vrdf',
+            },
+            {
+              label: 'Rendering Pipeline',
+              to: '/docs/architecture/rendering-pipeline',
+            },
+            {
+              label: 'Backend Integration and Contracts',
+              to: '/docs/architecture/backend-integration',
+            },
+            {
               label: 'Platform, Build, and Security',
               to: '/docs/architecture/platform-and-security',
             },
@@ -97,6 +109,11 @@ const config: Config = {
               to: '/docs/architecture/extension-guide',
             },
           ],
+        },
+        {
+          label: 'GitHub',
+          href: 'https://github.com/cassandra-stack/CASSANDRA-XR',
+          position: 'right',
         },
       ],
     },
@@ -111,12 +128,33 @@ const config: Config = {
               to: '/docs/',
             },
             {
+              label: 'Glossary',
+              to: '/docs/glossary',
+            },
+            {
+              label: 'Contributor Onboarding',
+              to: '/docs/contributor-onboarding',
+            },
+            {
               label: 'Technical Architecture',
               to: '/docs/technical-architecture',
             },
+          ],
+        },
+        {
+          title: 'Repositories',
+          items: [
             {
-              label: 'Runtime Subsystems',
-              to: '/docs/architecture/runtime-subsystems',
+              label: 'CASSANDRA XR',
+              href: 'https://github.com/cassandra-stack/CASSANDRA-XR',
+            },
+            {
+              label: 'VRDF SDK',
+              href: 'https://github.com/guillaume-schneider/vrdf-sdk',
+            },
+            {
+              label: 'HybridMedRenderer',
+              href: 'https://github.com/cassandra-stack/HybridMedRenderer',
             },
           ],
         },

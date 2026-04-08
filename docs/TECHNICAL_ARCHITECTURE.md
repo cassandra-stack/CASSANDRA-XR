@@ -9,13 +9,18 @@ This section is the architecture entry point for the XR viewer.
 
 Use the linked sections below to navigate the implementation details:
 
+- [Glossary](/docs/glossary)
+- [Contributor Onboarding](/docs/contributor-onboarding)
 - [Runtime Subsystems](/docs/architecture/runtime-subsystems)
 - [Scene and Runtime Flows](/docs/architecture/scene-and-flows)
+- [VRDF](/docs/architecture/vrdf)
+- [Rendering Pipeline](/docs/architecture/rendering-pipeline)
+- [Backend Integration and Contracts](/docs/architecture/backend-integration)
 - [Platform, Build, and Security](/docs/architecture/platform-and-security)
 - [Performance, Testing, and Risks](/docs/architecture/performance-and-risks)
 - [Extension Guide and Ownership](/docs/architecture/extension-guide)
 
-## 1. Purpose and Scope
+## Purpose and Scope
 
 This document describes the current technical architecture of the CASSANDRA XR Unity project as implemented in the repository.
 
@@ -31,7 +36,7 @@ The goal is to document:
 
 This is an implementation-oriented document. It describes what the codebase currently does, not only what the product is intended to do.
 
-## 2. High-Level System Overview
+## High-Level System Overview
 
 CASSANDRA XR is a Unity-based XR client for interactive exploration of medical volume data in mixed reality and desktop contexts.
 
@@ -45,7 +50,28 @@ At runtime, the application performs five primary jobs:
 
 The system is scene-driven. Most application logic is attached to `MonoBehaviour` components placed in `MainScene` and connected through serialized inspector references.
 
-## 3. Technology Stack
+## System Map
+
+The simplified map below shows the main runtime slice and the secondary voice/AI slice:
+
+```text
+Backend REST API ------------------------------+
+                                               |
+Backend WebSocket ---> PusherClient ---------- | ---> SessionDataController ---> StudyRuntimeSO
+                                               |                                 |-> StudyInfoPanelController
+Backend STT / TTS / AI endpoints -------------+                                 |-> SessionVolumeLoader
+                                                                                 |-> GeminiVoiceInterface
+                                                                                 |-> other MainScene listeners
+
+Persistent cache <------------------------- SessionDataController
+Persistent cache ----> VolumeDVR ----> Texture3D / Material ----> URP shaders ----> XR viewer
+
+GeminiVoiceInterface <----> GeminiClient ----> backend conversation endpoint
+GeminiVoiceInterface ----> ChatManager / TTS playback / UI state
+XR interaction layer ----> VolumeDVR / UI panels / report objects
+```
+
+## Technology Stack
 
 ### Engine and Core Runtime
 
@@ -83,7 +109,20 @@ The system is scene-driven. Most application logic is attached to `MonoBehaviour
   - `Assets/Shaders/VolumeDVR_URP.shader`
   - `Assets/Shaders/VolumeDVR_URP_Quest.shader`
 
-## 4. Repository Layout
+## Related Repositories and Technical Lineage
+
+The public technical context around this repository is split across three GitHub projects:
+
+- [CASSANDRA XR](https://github.com/cassandra-stack/CASSANDRA-XR)
+  - the main application repository documented here
+- [VRDF SDK](https://github.com/guillaume-schneider/vrdf-sdk)
+  - the companion repository for the `.vrdf` volume container, its export modes, and cross-platform tooling
+- [HybridMedRenderer](https://github.com/cassandra-stack/HybridMedRenderer)
+  - a related prototype and research-oriented renderer that explored hybrid surface and volume rendering with VRDF support
+
+This documentation focuses on the code shipped in this repository. The VRDF SDK is the public companion reference for the format itself, while HybridMedRenderer provides useful background on the renderer lineage that informed the current viewer.
+
+## Repository Layout
 
 The repository contains both product code and a significant amount of imported Unity sample/package content.
 
@@ -119,7 +158,7 @@ As a result:
 - There is no hard compile-time separation between modules
 - Boundaries are architectural conventions rather than enforced code boundaries
 
-## 5. Architectural Style
+## Architectural Style
 
 The application follows a Unity-native, scene-composed architecture:
 
@@ -138,3 +177,9 @@ It is better understood as a feature-oriented Unity app with a few key vertical 
 - Metadata and report display
 - XR and UI interactions
 
+## Continue Reading
+
+- [Glossary](/docs/glossary)
+- [Contributor Onboarding](/docs/contributor-onboarding)
+- [VRDF](/docs/architecture/vrdf)
+- [Backend Integration and Contracts](/docs/architecture/backend-integration)

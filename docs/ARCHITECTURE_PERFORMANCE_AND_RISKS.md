@@ -5,7 +5,7 @@ sidebar_position: 5
 slug: /architecture/performance-and-risks
 ---
 
-## 12. Performance Characteristics and Constraints
+## Performance Characteristics and Constraints
 
 ### Strong Areas
 
@@ -30,7 +30,7 @@ The README and architecture both point to a consistent bottleneck:
 
 This is structurally believable given the current synchronous decode and texture recreation path.
 
-## 13. Testing and Observability
+## Testing and Observability
 
 ### Automated Testing
 
@@ -57,7 +57,7 @@ Several key systems are verbose:
 
 This is helpful for diagnosis, but the logging strategy is ad hoc rather than centralized.
 
-## 14. Current Technical Debt and Risks
+## Current Technical Debt and Risks
 
 ### Architectural Debt
 
@@ -86,3 +86,8 @@ Examples visible in code:
 
 These do not break functionality, but they raise maintenance cost and reduce clarity.
 
+## Continue Reading
+
+- [Glossary](/docs/glossary)
+- [Platform, Build, and Security](/docs/architecture/platform-and-security)
+- [Extension Guide and Ownership](/docs/architecture/extension-guide)
