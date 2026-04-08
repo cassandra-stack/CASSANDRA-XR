@@ -41,6 +41,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Pull Git LFS assets
+        run: |
+          git lfs install
+          git lfs pull
+
       - name: Install dependencies
         run: npm ci
 
