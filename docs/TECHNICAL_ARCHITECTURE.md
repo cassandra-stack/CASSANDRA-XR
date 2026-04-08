@@ -50,6 +50,10 @@ At runtime, the application performs five primary jobs:
 
 The system is scene-driven. Most application logic is attached to `MonoBehaviour` components placed in `MainScene` and connected through serialized inspector references.
 
+![System overview diagram for the CASSANDRA XR runtime](./images/technical_architecture_diagram.png)
+
+*System overview of the CASSANDRA XR runtime, including the backend boundary, viewer subsystems, and scene-level coordination path.*
+
 ## System Map
 
 The simplified map below shows the main runtime slice and the secondary voice/AI slice:

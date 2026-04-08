@@ -11,11 +11,11 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://example.com',
-  baseUrl: '/',
-
-  organizationName: 'cassandra-xr',
-  projectName: 'docs',
+  url: 'https://cassandra-stack.github.io',
+  baseUrl: '/CASSANDRA-XR/',
+  trailingSlash: true,
+  organizationName: 'cassandra-stack',
+  projectName: 'CASSANDRA-XR',
 
   onBrokenLinks: 'throw',
   markdown: {

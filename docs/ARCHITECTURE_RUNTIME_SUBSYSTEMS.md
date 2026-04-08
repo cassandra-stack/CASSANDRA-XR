@@ -7,6 +7,10 @@ slug: /architecture/runtime-subsystems
 
 ## Main Runtime Subsystems
 
+![Runtime state ownership diagram](./images/ownership_diagran.png)
+
+*Runtime ownership map showing which objects hold study state, cache state, render state, and scene-facing coordination responsibilities.*
+
 ## Study Acquisition and Session Orchestration
 
 This subsystem is responsible for discovering the current study, publishing runtime state, downloading volume assets, and reacting to backend state changes.
@@ -398,6 +402,10 @@ Responsibilities:
 
 This is one of the largest and most functionally rich subsystems.
 
+![Voice and AI flow diagram](./images/ai_voice_system.png)
+
+*Voice and AI runtime flow covering wake word detection, recording, transcription, conversation calls, chat updates, and TTS playback.*
+
 ### Main Components
 
 - `Assets/Scripts/Interaction/WakeWord/PorcupineWakeWordListener.cs`
@@ -541,6 +549,10 @@ This is a compact but functional XR-friendly report interaction pattern.
 ## XR Interaction Layer
 
 This subsystem exists in the repository, but not all of it is central to the currently active scene.
+
+![XR interaction layer diagram](./images/interaction_system.png)
+
+*XR interaction layer showing the gesture, manipulation, and UI control paths that connect users to the rendered volume.*
 
 ### Main Components
 

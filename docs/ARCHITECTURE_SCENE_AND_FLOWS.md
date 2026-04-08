@@ -82,6 +82,10 @@ Voice interaction
   -> TTS response and chat UI update
 ```
 
+![Startup and reload sequence diagram](./images/startup_flow.png)
+
+*Startup, reload, and interaction flow across the scene bootstrap, websocket updates, and voice runtime.*
+
 ## Initial Startup Sequence
 
 1. `MainScene` loads

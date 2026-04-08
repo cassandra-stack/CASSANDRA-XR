@@ -44,6 +44,10 @@ SessionDataController
   -> URP shader raymarches the volume
 ```
 
+![Rendering pipeline diagram](./images/xr_rendering_pipeline.png)
+
+*High-level rendering pipeline from cached VRDF selection through decode, material binding, and final XR volume rendering.*
+
 ## Volume Selection
 
 `VolumeDVR.LoadVolumeByCodeAsync()` is the entry point used by startup and modality-switch flows.
@@ -81,6 +85,10 @@ The method calls:
 - `FitVolumeScaleFromSpacing()`
 
 Together, those steps bind the render inputs, initialize segmentation control state, build UI metadata, and scale the object in world space.
+
+![Direct volume rendering diagram in CASSANDRA XR](./images/dvr_pipeline.png)
+
+*Direct volume rendering path inside the viewer, from decoded texture inputs to material state and render-time control surfaces.*
 
 ## Main Shader Inputs
 
@@ -150,6 +158,10 @@ The renderer then uses `LateUpdate()` to derive scale-aware density compensation
 
 This is a hard branch in the current design. The project does not use one unified shader with minor runtime toggles. Instead, it keeps a dedicated Quest-oriented path.
 
+![Quest versus desktop rendering comparison diagram](./images/hardware_architecture_comparison.png)
+
+*Comparison of the desktop and Quest rendering split, highlighting the platform-specific shader and resource tradeoffs in the current pipeline.*
+
 ## Desktop Shader Path
 
 `Assets/Shaders/VolumeDVR_URP.shader` is the higher-fidelity desktop path.
@@ -163,6 +175,10 @@ The architecture described by the code and current docs is:
 - gradient-like lighting estimation
 
 This path is the easier one to inspect and reason about during development.
+
+![Raymarching internals diagram](./images/raymarching_diagram.png)
+
+*Raymarching internals used by the volume shaders, including sampling, transfer-function lookup, and lighting accumulation through the active volume.*
 
 ## Quest Shader Path
 

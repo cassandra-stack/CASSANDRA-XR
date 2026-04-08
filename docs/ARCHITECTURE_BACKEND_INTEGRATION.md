@@ -9,6 +9,10 @@ slug: /architecture/backend-integration
 
 This page documents the boundary between the Unity XR client and the external services it depends on.
 
+![Backend integration context within the CASSANDRA XR system](./images/technical_architecture_diagram.png)
+
+*Backend-facing context for the XR client, showing how REST, websocket, and study-scoped AI endpoints feed the runtime orchestration path.*
+
 It focuses on the contracts visible in this repository:
 
 - REST study payloads

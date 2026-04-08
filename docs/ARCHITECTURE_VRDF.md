@@ -57,6 +57,10 @@ The VRDF path in this repository is primarily implemented by:
 
 The loader reads each block in little-endian order and then dispatches parsing based on the metadata fields.
 
+![VRDF format and Unity decode path diagram](./images/vrdf_file_format.png)
+
+*VRDF container structure and the decode handoff from file blocks into the Unity runtime texture-building path.*
+
 ## Metadata Model
 
 The parsed metadata model in this repository is represented by `VRDFMeta`.
