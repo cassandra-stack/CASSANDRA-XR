@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'CASSANDRA XR',
   tagline: 'Technical documentation for the CASSANDRA XR viewer',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/cassandra-mark.svg',
 
   future: {
     v4: true,
