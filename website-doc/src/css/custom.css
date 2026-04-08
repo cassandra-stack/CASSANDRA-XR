@@ -35,7 +35,19 @@ html {
 }
 
 body {
-  background: radial-gradient(circle at center, #ffffff 0%, #f7fafc 50%, #e6e9ef 100%);
+  background: #ffffff;
+}
+
+.theme-doc-page,
+.theme-doc-page main,
+.theme-doc-page .main-wrapper,
+.theme-doc-page .container,
+.theme-doc-page .row,
+.theme-doc-markdown,
+.theme-doc-sidebar-container,
+.theme-doc-toc-desktop,
+.table-of-contents {
+  background: #ffffff;
 }
 
 .navbar {
