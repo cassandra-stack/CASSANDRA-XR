@@ -1,0 +1,103 @@
+:root {
+  --ifm-color-primary: #4a90e2;
+  --ifm-color-primary-dark: #3683dd;
+  --ifm-color-primary-darker: #287bd9;
+  --ifm-color-primary-darkest: #1f66b4;
+  --ifm-color-primary-light: #5d9de6;
+  --ifm-color-primary-lighter: #6ba5e9;
+  --ifm-color-primary-lightest: #79d7e1;
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-color-emphasis-0: #ffffff;
+  --ifm-color-emphasis-100: #f7fafc;
+  --ifm-color-emphasis-200: #e6e9ef;
+  --ifm-color-emphasis-300: #d8e0e8;
+  --ifm-color-emphasis-700: #52616c;
+  --ifm-color-emphasis-800: #3f4b55;
+  --ifm-color-emphasis-900: #2f3b45;
+  --ifm-font-color-base: #2f3b45;
+  --ifm-heading-color: #2f3b45;
+  --ifm-font-family-base: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --ifm-font-family-monospace: 'Courier New', Courier, monospace;
+  --ifm-code-font-size: 95%;
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.78);
+  --ifm-footer-background-color: #eef3f7;
+  --ifm-global-radius: 12px;
+  --ifm-button-border-radius: 12px;
+  --ifm-card-border-radius: 12px;
+  --ifm-h1-font-size: 3rem;
+  --ifm-h2-font-size: 2rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: radial-gradient(circle at center, #ffffff 0%, #f7fafc 50%, #e6e9ef 100%);
+}
+
+.navbar {
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(74, 144, 226, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.navbar__brand img {
+  width: 2.2rem;
+  height: 2.2rem;
+  object-fit: contain;
+}
+
+.footer {
+  border-top: 1px solid rgba(74, 144, 226, 0.08);
+}
+
+.theme-doc-sidebar-container {
+  border-right-color: rgba(74, 144, 226, 0.1);
+}
+
+.theme-doc-markdown h1,
+.theme-doc-markdown h2,
+.theme-doc-markdown h3 {
+  letter-spacing: -0.02em;
+}
+
+.theme-doc-markdown a,
+.pagination-nav__label,
+.table-of-contents__link:hover,
+.table-of-contents__link--active {
+  color: #4a90e2;
+}
+
+.button.button--primary {
+  box-shadow: 0 12px 26px rgba(74, 144, 226, 0.18);
+}
+
+.button.button--primary:hover {
+  background: #79d7e1;
+  border-color: #79d7e1;
+}
+
+.button.button--secondary {
+  border: 1px solid rgba(111, 195, 208, 0.45);
+  background: rgba(255, 255, 255, 0.68);
+  color: #2f3b45;
+  backdrop-filter: blur(12px);
+}
+
+.button.button--secondary:hover {
+  background: rgba(121, 215, 225, 0.16);
+  border-color: #79d7e1;
+}
+
+.card,
+.pagination-nav__link,
+.table-of-contents {
+  border-radius: 12px;
+}
+
+.theme-code-block,
+pre {
+  border: 1px solid rgba(74, 144, 226, 0.08);
+}
