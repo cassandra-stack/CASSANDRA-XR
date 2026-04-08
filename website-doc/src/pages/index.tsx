@@ -52,6 +52,7 @@ const facts = [
 
 export default function Home(): ReactNode {
   const walkthroughUrl = useBaseUrl('/video/CASSANDRA-Demo_Interaction.mp4');
+  const walkthroughPosterUrl = useBaseUrl('/img/cassandra-social-card.svg');
 
   return (
     <Layout
@@ -84,10 +85,12 @@ export default function Home(): ReactNode {
                 <video
                   className={styles.video}
                   autoPlay
+                  controls
                   muted
                   loop
                   playsInline
                   preload="metadata"
+                  poster={walkthroughPosterUrl}
                   aria-label="CASSANDRA XR walkthrough video">
                   <source src={walkthroughUrl} type="video/mp4" />
                 </video>

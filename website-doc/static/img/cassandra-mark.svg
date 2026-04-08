@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">CASSANDRA XR mark</title>
+  <defs>
+    <linearGradient id="ring" x1="24" y1="20" x2="96" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6FC3D0"/>
+      <stop offset="100%" stop-color="#4A90E2"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="100" height="100" rx="24" fill="#FFFFFF" stroke="#D9E3EF" stroke-width="2"/>
+  <circle cx="60" cy="60" r="31" fill="none" stroke="url(#ring)" stroke-width="9"/>
+  <circle cx="60" cy="60" r="15" fill="#2F3B45"/>
+</svg>
