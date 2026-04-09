@@ -30,19 +30,14 @@ The main implementation lives in:
 
 ## Render Pipeline Overview
 
-The viewer-side rendering sequence is:
+At a high level, the viewer-side rendering pipeline follows these stages:
 
-```text
-SessionDataController
-  -> modality selected
-  -> VolumeDVR.LoadVolumeByCodeAsync(code)
-  -> file resolved from cache or StreamingAssets
-  -> VRDFLoader.LoadFromFile(path)
-  -> VRDFLoader.BuildUnityTextures(data)
-  -> VolumeDVR.ApplyAfterLoad()
-  -> material receives textures and control state
-  -> URP shader raymarches the volume
-```
+1. `SessionDataController` selects the active modality
+2. `VolumeDVR.LoadVolumeByCodeAsync(code)` resolves the source file from cache or `StreamingAssets`
+3. `VRDFLoader.LoadFromFile(path)` parses the `.vrdf` container
+4. `VRDFLoader.BuildUnityTextures(data)` creates the runtime textures and LUT inputs
+5. `VolumeDVR.ApplyAfterLoad()` binds textures, control state, and metadata to the material
+6. The active URP shader raymarches the volume into the final XR output
 
 ![Rendering pipeline diagram](./images/xr_rendering_pipeline.png)
 

@@ -58,22 +58,9 @@ The system is scene-driven. Most application logic is attached to `MonoBehaviour
 
 The simplified map below shows the main runtime slice and the secondary voice/AI slice:
 
-```text
-Backend REST API ------------------------------+
-                                               |
-Backend WebSocket ---> PusherClient ---------- | ---> SessionDataController ---> StudyRuntimeSO
-                                               |                                 |-> StudyInfoPanelController
-Backend STT / TTS / AI endpoints -------------+                                 |-> SessionVolumeLoader
-                                                                                 |-> GeminiVoiceInterface
-                                                                                 |-> other MainScene listeners
+![System map for the CASSANDRA XR runtime](./images/cassandra_xr_system_map.png)
 
-Persistent cache <------------------------- SessionDataController
-Persistent cache ----> VolumeDVR ----> Texture3D / Material ----> URP shaders ----> XR viewer
-
-GeminiVoiceInterface <----> GeminiClient ----> backend conversation endpoint
-GeminiVoiceInterface ----> ChatManager / TTS playback / UI state
-XR interaction layer ----> VolumeDVR / UI panels / report objects
-```
+*High-level system map showing backend services, runtime orchestration, rendering flow, and the voice/UI/XR consumers around the active study state.*
 
 ## Technology Stack
 

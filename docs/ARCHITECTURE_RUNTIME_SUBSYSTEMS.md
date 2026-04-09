@@ -406,6 +406,10 @@ This is one of the largest and most functionally rich subsystems.
 
 *Voice and AI runtime flow covering wake word detection, recording, transcription, conversation calls, chat updates, and TTS playback.*
 
+![Detailed voice interaction flow diagram](./images/voice_interaction_flow.png)
+
+*Detailed voice interaction flow from wake word or user input through recording, transcription, conversational processing, audio playback, and chat UI update.*
+
 ### Main Components
 
 - `Assets/Scripts/Interaction/WakeWord/PorcupineWakeWordListener.cs`

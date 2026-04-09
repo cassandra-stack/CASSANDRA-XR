@@ -147,17 +147,15 @@ The renderer can then switch between softer interpolated visualization and harde
 
 ## VRDF In The Viewer Pipeline
 
-At a high level, the VRDF path looks like this:
+At a high level, the VRDF path in the viewer is:
 
-```text
-REST study payload
-  -> StudyMapper identifies VRDF-like assets
-  -> SessionDataController downloads .vrdf files to cache
-  -> VolumeDVR selects a modality file
-  -> VRDFLoader parses file and builds Texture3D assets
-  -> VolumeDVR binds textures and LUTs to the material
-  -> shaders raymarch the active volume
-```
+1. the REST study payload is mapped into viewer-friendly asset metadata
+2. `StudyMapper` identifies VRDF-like assets and modality associations
+3. `SessionDataController` downloads `.vrdf` files into persistent cache
+4. `VolumeDVR` selects the requested modality file
+5. `VRDFLoader` parses the container and builds the corresponding `Texture3D` resources
+6. `VolumeDVR` binds textures and LUTs to the material
+7. the active shader raymarches the decoded volume
 
 ## Naming Expectations In This Repository
 

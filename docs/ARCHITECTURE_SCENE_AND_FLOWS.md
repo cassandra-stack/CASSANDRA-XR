@@ -54,33 +54,11 @@ in a single scene composition.
 
 ## End-to-End Runtime Sequences
 
-The simplified flow below shows the three most important runtime paths:
+The sequence diagram below summarizes the three most important runtime paths:
 
-```text
-MainScene load
-  -> SessionVolumeLoader.Start()
-  -> SessionDataController.BeginLoad()
-  -> StudyService.FetchStudies()
-  -> StudyRuntimeSO updated
-  -> VRDF assets downloaded to cache
-  -> VolumeDVR.LoadVolumeByCodeAsync()
-  -> textures and materials prepared
-  -> loading UI fades out
-
-WebSocket reload
-  -> PusherClient receives frame
-  -> main-thread event dispatch
-  -> SessionDataController reload request
-  -> cache refresh if needed
-  -> VolumeDVR reloads current modality
-
-Voice interaction
-  -> wake word or user input
-  -> recording and silence detection
-  -> STT request
-  -> conversational backend request
-  -> TTS response and chat UI update
-```
+- Initial startup: scene bootstrap, study fetch, cache download, first volume load, and UI reveal
+- Websocket-triggered reload: backend state change, main-thread dispatch, reload request, and modality refresh
+- Voice interaction: user or wake-word trigger, recording, transcription, conversational request, response playback, and chat update
 
 ![Startup and reload sequence diagram](./images/startup_flow.png)
 
